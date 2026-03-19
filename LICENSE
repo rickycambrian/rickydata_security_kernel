@@ -1,90 +1,51 @@
-# Rickydata Security Kernel License
+# Elastic License 2.0
 
-**Version 1.0 | Effective Date: 2026-03-19**
+ELASTIC LICENSE 2.0
 
-## IMPORTANT - READ BEFORE USING
+IMPORTANT: PLEASE READ THIS LICENSE CAREFULLY BEFORE USING THIS SOFTWARE.
 
-This software is provided under a **Source-Available License** that protects our business while enabling security transparency.
+## Acceptance
 
----
+By using this software, You accept and agree to be bound by all the terms and conditions of this License.
 
-## 1. License Grant
+## Definitions
 
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software ("You"), to:
+"You" and "Your" refer to You, as a natural person or legal entity, acquiring rights in the Software.
 
-### Permitted Uses:
-- **Audit and Review**: You may view, inspect, and analyze the source code for security verification purposes
-- **Integration with Rickydata Services**: You may use this software in connection with Rickydata's hosted services (MCP Gateway, Agent Gateway)
-- **Academic Research**: You may use this software for non-commercial academic research
-- **Security Testing**: You may conduct security testing and vulnerability research (with prior written consent)
+"Software" means the source code, object code, and documentation provided by Elastic under this License.
 
-### Prohibited Uses:
-- **Forking**: You may NOT create derivative works, forks, or branches of this repository
-- **Commercial Use**: You may NOT use this software to build competing products or services
-- **Standalone Deployment**: You may NOT deploy this software as a standalone service to third parties
-- **Redistribution**: You may NOT redistribute this software or derivatives to third parties
-- **Re-licensing**: You may NOT re-license this software under different terms
+## License Grant
 
----
+Subject to Your compliance with this License, Elastic grants You permission to:
+- Use, copy, and view the Software for non-commercial purposes
+- Use, copy, and view the Software for commercial purposes ONLY in connection with Elastic's hosted offerings
+- Audit and verify the Software's security properties
 
-## 2. Intellectual Property
+## Restrictions
 
-The source code, algorithms, implementations, and documentation in this repository are the exclusive intellectual property of **Ricky Cambrian** ("Licensor").
+You may NOT:
+- Use the Software to provide a managed or hosted service to third parties
+- Provide the Software as a standalone offering to third parties
+- Fork or create derivative works
+- Redistribute the Software
+- Use the Software for commercial purposes outside of Elastic's hosted offerings
 
-Nothing in this license grants You any rights to:
-- The "Rickydata" trademark or brand
-- Any patents held by Licensor
-- Trade secrets embodied in the implementation
+## Intellectual Property
 
----
+The Software is proprietary to Elastic. All rights not expressly granted in this License are reserved.
 
-## 3. No Warranty - Disclaimer
+## Disclaimer
 
-THIS SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
 
-IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+## Limitation of Liability
 
----
+IN NO EVENT SHALL ELASTIC BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH THE SOFTWARE.
 
-## 4. Limitation of Liability
+## Contact
 
-To the maximum extent permitted by applicable law, in no event shall Licensor be liable for any indirect, special, incidental, or consequential damages arising out of or related to this software, even if advised of the possibility of such damages.
+For security research inquiries: https://x.com/rickydata42
 
 ---
 
-## 5. Security Verification
-
-This software is designed to be verifiable. You may:
-- Review the source code for security properties
-- Verify TEE attestation reports
-- Test encryption implementations
-- Audit key derivation processes
-
-However, verification does not constitute endorsement or approval for any use beyond what is explicitly permitted in Section 1.
-
----
-
-## 6. Termination
-
-This license is effective until terminated. It terminates automatically if You:
-- Breach any provision of this license
-- File or participate in any legal action against Licensor regarding this software
-- Use the software in violation of Section 1
-
-Upon termination, You must immediately cease all use of this software and destroy all copies.
-
----
-
-## 7. Governing Law
-
-This license shall be governed by and construed in accordance with the laws of the State of California, United States, without regard to conflict of law principles.
-
----
-
-## 8. Contact
-
-For security research inquiries or permissions beyond the scope of this license, contact: **legal@rickydata.org**
-
----
-
-**By using this software, You acknowledge that You have read, understood, and agree to be bound by the terms of this license.**
+This license is based on the Elastic License 2.0 and modified to fit Rickydata's specific use case.

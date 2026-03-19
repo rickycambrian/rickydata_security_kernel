@@ -1,6 +1,6 @@
 {
   "name": "@rickydata/security-kernel",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Security kernel for Rickydata - TPM sealing, encryption, and sign-to-derive key derivation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

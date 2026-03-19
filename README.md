@@ -401,6 +401,4 @@ This software is provided under a Source-Available license. See [LICENSE](./LICE
 
 ## Questions?
 
-- **Security Issues**: security@rickydata.org
-- **General Inquiries**: contact@rickydata.org
-- **Legal**: legal@rickydata.org
+- **Security / Inquiries**: https://x.com/rickydata42
