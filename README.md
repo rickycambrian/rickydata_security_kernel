@@ -1,8 +1,8 @@
-# @rickycambrian/security-kernel
+# @rickydata/security-kernel
 
 <p align="center">
   <img src="https://img.shields.io/badge/license-Source--Available-red?style=for-the-badge" alt="License">
-  <img src="https://img.shields.io/npm/v/@rickycambrian/security-kernel?style=for-the-badge" alt="npm version">
+  <img src="https://img.shields.io/npm/v/@rickydata/security-kernel?style=for-the-badge" alt="npm version">
   <img src="https://img.shields.io/github/last-commit/rickycambrian/rickydata_security_kernel?style=for-the-badge" alt="Last commit">
 </p>
 
@@ -99,7 +99,7 @@ Traditional SaaS platforms store user secrets (API keys, credentials) in ways th
 ### 1. Encryption Layer (AES-256-GCM)
 
 ```typescript
-import { encrypt, decrypt } from '@rickycambrian/security-kernel';
+import { encrypt, decrypt } from '@rickydata/security-kernel';
 
 const key = crypto.randomBytes(32);
 const { encrypted, iv, authTag } = encrypt('my secret', key);
@@ -113,7 +113,7 @@ const decrypted = decrypt(encrypted, iv, authTag, key);
 ### 2. Sign-to-Derive Key Derivation
 
 ```typescript
-import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } from '@rickycambrian/security-kernel';
+import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } from '@rickydata/security-kernel';
 
 // User signs with their wallet
 const signature = await wallet.signMessage('Encrypt my data');
@@ -136,7 +136,7 @@ The magic: `keccak256(signature) → 32-byte key`
 For non-sign-to-derive encryption (system-level secrets):
 
 ```typescript
-import { initMasterKey, sealMasterKey, unsealMasterKey } from '@rickycambrian/security-kernel';
+import { initMasterKey, sealMasterKey, unsealMasterKey } from '@rickydata/security-kernel';
 
 // Production: TPM must be available (container FAILS if unavailable)
 initMasterKey({
@@ -263,7 +263,7 @@ Compare the `codeHash` with the hash of this package.
 ### Encryption
 
 ```typescript
-import { encrypt, decrypt, secureWipe } from '@rickycambrian/security-kernel';
+import { encrypt, decrypt, secureWipe } from '@rickydata/security-kernel';
 
 // Encrypt
 const result = encrypt(plaintext: string, key: Buffer): EncryptedData
@@ -279,7 +279,7 @@ secureWipe(buffer: Buffer): void
 ### Sign-to-Derive
 
 ```typescript
-import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } from '@rickycambrian/security-kernel';
+import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } from '@rickydata/security-kernel';
 
 // Derive key from Ethereum signature
 const key = deriveKeyFromSignature(signature: string): Buffer
@@ -300,7 +300,7 @@ const plaintext = decryptWithSignature(
 ### TPM Sealing
 
 ```typescript
-import { checkTpmAvailability, tpmSeal, tpmUnseal, sealMasterKey, unsealMasterKey } from '@rickycambrian/security-kernel';
+import { checkTpmAvailability, tpmSeal, tpmUnseal, sealMasterKey, unsealMasterKey } from '@rickydata/security-kernel';
 
 // Check TPM availability
 const status = checkTpmAvailability(): TpmAvailability
@@ -323,7 +323,7 @@ const exists = hasSealedMasterKey(storagePath: string): boolean
 ### Testing
 
 ```typescript
-import { enableTpmMock, disableTpmMock } from '@rickycambrian/security-kernel';
+import { enableTpmMock, disableTpmMock } from '@rickydata/security-kernel';
 
 // Enable TPM mock for testing (no hardware required)
 enableTpmMock(seedData: Buffer): void
@@ -337,7 +337,7 @@ disableTpmMock(): void
 ## Installation
 
 ```bash
-npm install @rickycambrian/security-kernel
+npm install @rickydata/security-kernel
 ```
 
 ### Requirements
