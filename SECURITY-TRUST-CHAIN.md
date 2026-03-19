@@ -1,44 +1,48 @@
-# @rickydata/security-kernel Sync Workflow
+# @rickydata/security-kernel Trust Chain
 
 ## Overview
 
-This workflow ensures the security-kernel package stays synchronized between:
-- Source: `mcp-agent-gateway/src/secrets/` (where security code is developed)
-- Target: `@rickydata/security-kernel` npm package (public distribution)
-
-## When It Runs
-
-- **Manual**: Workflow dispatch
-- **Automatic**: After deploy-gateway or deploy-agent-gateway workflows complete
+This document describes how `@rickydata/security-kernel` provides the cryptographic foundation for both the MCP Gateway and Agent Gateway TEEs, enabling public auditability of the exact same security code in both systems.
 
 ## Trust Chain
-
-The security kernel is the foundation of our zero-knowledge architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    TRUST CHAIN                                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  1. SECURITY KERNEL (this package)                          │
+│  1. SECURITY KERNEL (@rickydata/security-kernel)           │
 │     ├─ AES-256-GCM encryption                                │
-│     ├─ Sign-to-derive (operator cannot read)                │
+│     ├─ HKDF key derivation (in-memory or TPM-sealed)         │
+│     ├─ Sign-to-derive (operator cannot read user data)       │
 │     └─ TPM sealing with PCR binding                          │
 │                           │                                      │
 │                           ▼                                      │
 │  2. MCP GATEWAY TEE (mcp-gateway)                        │
 │     ├─ AMD SEV-SNP confidential VM                          │
-│     ├─ Attestation verified at /health                       │
-│     └─ Uses security-kernel for secret management            │
+│     ├─ In-memory encryption (fresh random key each startup)  │
+│     └─ Attestation verified at /health                       │
 │                           │                                      │
 │                           ▼                                      │
 │  3. AGENT GATEWAY TEE (mcp-agent-gateway)                │
 │     ├─ AMD SEV-SNP confidential VM                          │
+│     ├─ TPM-sealed keys with PCR binding                     │
 │     ├─ Attestation verified at /health                       │
-│     └─ Uses security-kernel for BYOK secrets                 │
+│     └─ BYOK Anthropic API key management                     │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## Dual Encryption Models
+
+The security kernel supports two encryption models:
+
+| Model | Used By | Key Source | Persistence |
+|-------|---------|-------------|-------------|
+| **In-Memory** | MCP Gateway | Fresh 32-byte random key each startup | None (restart = clean slate) |
+| **TPM-Sealed** | Agent Gateway | PCR-bound TPM key | Survives restarts via TPM unsealing |
+
+Both models use the same AES-256-GCM encryption and HKDF key derivation code, just with different master key sources.
 
 ## Verification Commands
 
@@ -48,53 +52,40 @@ npm view @rickydata/security-kernel version
 npm view @rickydata/security-kernel license
 ```
 
-### 2. Verify Agent Gateway TEE
-```bash
-curl -s https://agents.rickydata.org/health | jq '.securityPosture'
-# Returns: { tee: "SEV-SNP", attestation: "verified", codeHash: "sha256:..." }
-```
-
-### 3. Verify MCP Gateway TEE
+### 2. Verify MCP Gateway TEE
 ```bash
 curl -s https://mcp.rickydata.org/health | jq '.securityPosture'
-# Returns: { tee: "SEV-SNP", attestation: "verified", codeHash: "sha256:..." }
+# Returns: { tee: "SEV-SNP", attestation: "verified", keySources: {...} }
 ```
 
-### 4. Verify Both TEEs Use Same Security Kernel
+### 3. Verify Agent Gateway TEE
 ```bash
-# Get code hashes from both gateways
-AGENT_HASH=$(curl -s https://agents.rickydata.org/health | jq -r '.securityPosture.codeHash')
-MCP_HASH=$(curl -s https://mcp.rickydata.org/health | jq -r '.securityPosture.codeHash')
-
-# Compare
-if [ "$AGENT_HASH" = "$MCP_HASH" ]; then
-  echo "✅ Both TEEs use identical security kernel"
-else
-  echo "⚠️ TEEs use different security kernels"
-fi
+curl -s https://agents.rickydata.org/health | jq '.securityPosture'
+# Returns: { tee: "SEV-SNP", attestation: "verified", keySources: {...} }
 ```
 
-## Manual Sync Steps
-
-If you need to manually sync the security kernel:
-
+### 4. Verify MCP Gateway Uses In-Memory Security Kernel
 ```bash
-# 1. Copy source files from agent-gateway
-cp mcp-agent-gateway/src/secrets/encryption.ts rickydata_security_kernel/src/
-cp mcp-agent-gateway/src/secrets/key-derivation.ts rickydata_security_kernel/src/
-cp mcp-agent-gateway/src/secrets/tpm-vault.ts rickydata_security_kernel/src/
+curl -s https://mcp.rickydata.org/health | jq '.securityPosture.keySources'
+# Expected: vaultEncryptionKey uses "gateway_secret_key_fallback"
+```
 
-# 2. Update version
+### 5. Verify Agent Gateway Uses TPM-Sealed Security Kernel
+```bash
+curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources'
+# Expected: jwtSecret, ledgerEncryptionKey, signingKeyMaterial all show "tpm_pcr"
+```
+
+### 6. Public Audit - Verify Security Kernel Source Code
+```bash
+# View the public npm package source
+npm view @rickydata/security-kernel repository.url
+
+# Or clone and verify
+git clone https://github.com/rickycambrian/rickydata_security_kernel.git
 cd rickydata_security_kernel
-npm version patch
-
-# 3. Build and test
-npm install
 npm run build
 npm test
-
-# 4. Publish
-npm publish --access public
 ```
 
 ## Security Guarantees
@@ -103,14 +94,40 @@ With this trust chain:
 
 | Capability | Guarantee |
 |------------|------------|
-| Read user API keys | ❌ Impossible (Sign-to-Derive) |
-| Read encrypted data | ❌ Impossible (key derived from signature) |
-| Extract secrets from disk | ❌ Impossible (TPM-sealed) |
-| Modify security kernel | ❌ Impossible (attestation detects) |
-| Fake attestation | ❌ Impossible (hardware-rooted) |
+| Read user API keys | ❌ Impossible (Sign-to-derive or per-wallet derived keys) |
+| Read encrypted data | ❌ Impossible (key derived from wallet signature or random) |
+| Extract secrets from disk | ❌ Impossible (TPM-sealed or in-memory only) |
+| Modify security kernel | ❌ Impossible (attestation detects code changes) |
+| Fake attestation | ❌ Impossible (hardware-rooted AMD SEV-SNP) |
+
+## Architecture Details
+
+### MCP Gateway (In-Memory Model)
+- **Master Key**: Fresh 32-byte random value generated at startup
+- **Per-User Keys**: HKDF-derived using wallet address + per-user random salt
+- **Per-Server Keys**: HKDF with serverId in info parameter for isolation
+- **Vault Lookup**: HMAC-SHA256 of wallet address (no plaintext stored)
+- **Restart Behavior**: All secrets cleared on restart (by design)
+
+### Agent Gateway (TPM-Sealed Model)
+- **Master Key**: Sealed in TPM with PCR policy (sha256:0,1,2,3,4,5,7)
+- **Per-User Keys**: HKDF-derived from unsealed master key
+- **Recovery**: Automatic unsealing on restart if TPM state unchanged
+- **Fallback**: Env vars only if TPM unavailable (with warnings)
 
 ## Files
 
-- Source: `mcp-agent-gateway/src/secrets/`
-- Package: `rickydata_security_kernel/`
-- npm: `@rickydata/security-kernel`
+- **Agent Gateway Source**: `mcp-agent-gateway/src/secrets/` (TPM model)
+- **MCP Gateway Source**: `mcp-gateway/src/secrets/` (in-memory model)
+- **Security Kernel Package**: `rickydata_security_kernel/`
+- **npm Distribution**: `@rickydata/security-kernel`
+
+## Sync Workflow
+
+The security kernel is synced from both gateways to the npm package:
+
+1. Agent Gateway security files → TPM-sealed model in security-kernel
+2. MCP Gateway security files → In-memory model in security-kernel
+3. Both models published together in `@rickydata/security-kernel`
+
+This ensures public auditability of the exact same crypto code running in both TEEs.
