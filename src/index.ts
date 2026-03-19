@@ -6,11 +6,25 @@
  * - TPM-based sealing/unsealing (with mock support)
  * - Sign-to-derive key derivation (user-controlled encryption)
  * - HKDF key derivation from master key
+ * - In-memory encryption (fresh random key each startup)
  */
 
-// Encryption
+// Encryption (TPM-sealed master key model - Agent Gateway)
 export { encrypt, decrypt, secureWipe, secureWipeString } from './encryption.js';
 export type { EncryptedData } from './types.js';
+
+// In-Memory Encryption (fresh random key each startup - MCP Gateway)
+export {
+  encrypt as encryptInmem,
+  decrypt as decryptInmem,
+  secureWipe as secureWipeInmem,
+  secureWipeString as secureWipeStringInmem,
+  initMasterKey,
+  deriveUserKey,
+  computeVaultKey,
+  clearMasterKey,
+  isMasterKeyInitialized,
+} from './encryption-inmem.js';
 
 // TPM Sealer
 export {
