@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } from '../src/sign-to-derive.js';
+import { secureWipe } from '../src/encryption.js';
 
 describe('sign-to-derive', () => {
   // Test signature: 65 bytes (130 hex chars)
@@ -85,6 +86,65 @@ describe('sign-to-derive', () => {
       expect(() => Buffer.from(encrypted, 'base64')).not.toThrow();
       expect(() => Buffer.from(iv, 'base64')).not.toThrow();
       expect(() => Buffer.from(authTag, 'base64')).not.toThrow();
+    });
+  });
+
+  describe('signature lifecycle', () => {
+    it('should fail to decrypt when a different signature is used', () => {
+      const sigA = 'aa'.repeat(65);
+      const sigB = 'bb'.repeat(65);
+
+      // Encrypt with signature A
+      const { encrypted, iv, authTag } = encryptWithSignature('top secret', sigA);
+
+      // Decrypt with signature B must fail (different derived key)
+      expect(() => {
+        decryptWithSignature(encrypted, iv, authTag, sigB);
+      }).toThrow();
+
+      // Decrypt with signature A must succeed
+      const result = decryptWithSignature(encrypted, iv, authTag, sigA);
+      expect(result).toBe('top secret');
+    });
+
+    it('same signature always derives the same key (determinism across calls)', () => {
+      const sig = 'cc'.repeat(65);
+
+      const key1 = deriveKeyFromSignature(sig);
+      const key2 = deriveKeyFromSignature(sig);
+      const key3 = deriveKeyFromSignature(sig);
+
+      expect(key1.equals(key2)).toBe(true);
+      expect(key2.equals(key3)).toBe(true);
+    });
+
+    it('secureWipe clears the derived key buffer', () => {
+      const sig = 'dd'.repeat(65);
+      const key = deriveKeyFromSignature(sig);
+
+      // Key should be non-zero before wipe
+      expect(key.some(b => b !== 0)).toBe(true);
+
+      secureWipe(key);
+
+      // All bytes should be zero after wipe
+      expect(key.every(b => b === 0)).toBe(true);
+    });
+
+    it('encrypt-decrypt round-trip preserves data integrity for multiple secrets', () => {
+      const sig = 'ee'.repeat(65);
+      const secrets = [
+        'sk-ant-api03-secret-key-value',
+        '{"password":"hunter2","token":"abc123"}',
+        '',  // empty string
+        'a'.repeat(10000),  // large payload
+      ];
+
+      for (const secret of secrets) {
+        const { encrypted, iv, authTag } = encryptWithSignature(secret, sig);
+        const decrypted = decryptWithSignature(encrypted, iv, authTag, sig);
+        expect(decrypted).toBe(secret);
+      }
     });
   });
 });

@@ -100,9 +100,18 @@ export function isTpmMockEnabled(): boolean {
 /**
  * Seals data using the TPM.
  *
- * In production, this would use the TPM2_Seal command.
- * For this implementation, we use a simulation that demonstrates
- * the API contract while using software encryption as fallback.
+ * **Production path**: Uses TPM2_Seal via `/dev/tpm0` or `/dev/tpmrm0` to
+ * hardware-bind the sealed blob to the platform's PCR state.
+ *
+ * **Simulation fallback**: When a real TPM device is detected but the actual
+ * TPM2 command interface is not yet wired, this function falls back to a
+ * software simulation that uses `SHA-256(devicePath)` as the sealing key.
+ * **This is NOT hardware-backed and MUST NOT be relied upon for production
+ * security guarantees.** It exists to validate the API contract during
+ * development and integration testing.
+ *
+ * **Mock mode**: When `enableTpmMock()` has been called, seal/unseal use
+ * deterministic in-memory storage. This is the correct path for unit tests.
  *
  * @param data - 32-byte data to seal
  * @returns TpmSealedData object
@@ -146,9 +155,15 @@ export function tpmSeal(data: Buffer): TpmSealedData {
     throw new Error(`TPM not available: ${availability.reason}`);
   }
 
-  // Production implementation would use actual TPM commands here
-  // For now, we demonstrate the concept with software encryption
-  // that would be replaced with TPM2 Seal in production
+  // SOFTWARE SIMULATION — NOT hardware-backed TPM sealing.
+  // This path runs when a TPM device node exists but the real TPM2 command
+  // interface is not wired. The "key" is just SHA-256 of the device path,
+  // which provides NO hardware binding or anti-extraction guarantees.
+  // Replace with actual TPM2_Seal commands for production use.
+  console.warn(
+    '[SecurityKernel] TPM simulation mode — NOT hardware-backed. ' +
+    'Use only for development/testing.'
+  );
   const simulatedTpmKey = crypto.createHash('sha256')
     .update(availability.devicePath!)
     .digest();
@@ -171,6 +186,10 @@ export function tpmSeal(data: Buffer): TpmSealedData {
 
 /**
  * Unseals TPM-sealed data.
+ *
+ * See `tpmSeal` for details on the three execution paths (production TPM,
+ * software simulation, and mock mode). The simulation path here mirrors
+ * the seal path and is **NOT hardware-backed**.
  *
  * @param sealedData - TpmSealedData object from tpmSeal
  * @returns Original 32-byte data
@@ -201,8 +220,12 @@ export function tpmUnseal(sealedData: TpmSealedData): Buffer {
     throw new Error(`TPM not available: ${availability.reason}`);
   }
 
-  // Production implementation would use actual TPM2_Unseal command
-  // For now, we demonstrate the concept with software decryption
+  // SOFTWARE SIMULATION — NOT hardware-backed TPM unsealing.
+  // See tpmSeal() for details. Replace with actual TPM2_Unseal for production.
+  console.warn(
+    '[SecurityKernel] TPM simulation mode — NOT hardware-backed. ' +
+    'Use only for development/testing.'
+  );
   const simulatedTpmKey = crypto.createHash('sha256')
     .update(availability.devicePath!)
     .digest();
