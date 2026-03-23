@@ -73,10 +73,20 @@ curl -s https://mcp.rickydata.org/health | jq '.securityPosture.keySources'
 ### 5. Verify Agent Gateway Uses TPM-Sealed Security Kernel
 ```bash
 curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources'
-# Expected: jwtSecret, ledgerEncryptionKey, signingKeyMaterial all show "tpm_pcr"
+# Expected: ALL keys show "tpm_pcr", including byokVaultEncryptionKey
+# If byokVaultEncryptionKey shows "env_fallback", the operator could read user secrets
 ```
 
-### 6. Public Audit - Verify Security Kernel Source Code
+### 6. Verify BYOK Vault Key Is Zero-Knowledge
+```bash
+# Confirm the BYOK vault key source is tpm_pcr (NOT env_fallback)
+curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources.byokVaultEncryptionKey'
+# Must return: "tpm_pcr"
+# This key encrypts user API keys at rest. When TPM-bound, the operator cannot extract it.
+# The key is randomly generated on the VM and sealed to TPM — it never exists in GitHub secrets.
+```
+
+### 7. Public Audit - Verify Security Kernel Source Code
 ```bash
 # View the public npm package source
 npm view @rickydata/security-kernel repository.url
@@ -97,6 +107,8 @@ With this trust chain:
 | Read user API keys | ❌ Impossible (Sign-to-derive or per-wallet derived keys) |
 | Read encrypted data | ❌ Impossible (key derived from wallet signature or random) |
 | Extract secrets from disk | ❌ Impossible (TPM-sealed or in-memory only) |
+| Recover user secrets after TPM reset | ❌ Impossible (BYOK vault key is randomly generated and sealed — never in GitHub secrets) |
+| Operator reads BYOK vault key | ❌ Impossible (never falls back to operator-accessible `LEDGER_ENCRYPTION_KEY`) |
 | Modify security kernel | ❌ Impossible (attestation detects code changes) |
 | Fake attestation | ❌ Impossible (hardware-rooted AMD SEV-SNP) |
 
@@ -112,8 +124,9 @@ With this trust chain:
 ### Agent Gateway (TPM-Sealed Model)
 - **Master Key**: Sealed in TPM with PCR policy (sha256:0,1,2,3,4,5,7)
 - **Per-User Keys**: HKDF-derived from unsealed master key
-- **Recovery**: Automatic unsealing on restart if TPM state unchanged
-- **Fallback**: Env vars only if TPM unavailable (with warnings)
+- **BYOK Vault Key**: Randomly generated on VM and sealed to TPM. Never stored in GitHub secrets. If TPM reset occurs, a fresh key is generated (old user secrets are unrecoverable by design — zero-knowledge preserved).
+- **Recovery**: Automatic unsealing on restart if TPM state unchanged. Deploy auto-heals vTPM slot exhaustion via `tpm2_clear`.
+- **Fallback**: Infrastructure keys (JWT, ledger) use env vars if TPM unavailable. BYOK vault key **never** falls back to an operator-readable key.
 
 ## Files
 
