@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/github/last-commit/rickycambrian/rickydata_security_kernel?style=for-the-badge" alt="Last commit">
 </p>
 
-A publicly auditable security kernel providing cryptographic primitives for user-controlled encryption. This package enables **zero-knowledge architecture** where even the operator cannot access user secrets.
+A publicly auditable security kernel providing cryptographic primitives for user-controlled encryption. This package supports **zero-knowledge architecture**: user data is encrypted with user-controlled signatures or TPM-bound keys, and production services are expected to fail closed instead of falling back to operator-readable keys.
 
 > **This is NOT permissive open source.** See [LICENSE](./LICENSE) for usage terms.
 
@@ -50,11 +50,10 @@ Traditional SaaS platforms store user secrets (API keys, credentials) in ways th
 │     │  by user)    │      └──────────────┘                          │
 │     └──────────────┘           │                                      │
 │                                ▼                                      │
-│  2. SERVER NEVER SEES KEY                                           │
+│  2. SERVER DERIVES A TRANSIENT KEY                                  │
 │     ┌──────────────┐      ┌──────────────┐                          │
-│     │ Keccak256(sig)     │ 32-byte Key   │  ◄── Server only        │
-│     │     │         │ ──► │ (derived,     │       sees signature    │
-│     │     │         │      │  never stored)                         │
+│     │ SHA-256(sig) │ ───► │ 32-byte Key  │  ◄── Key is wiped       │
+│     │              │      │ (not stored) │      after use          │
 │     └──────────────┘      └──────────────┘                          │
 │                                │                                      │
 │                                ▼                                      │
@@ -79,11 +78,11 @@ Traditional SaaS platforms store user secrets (API keys, credentials) in ways th
 
 | Capability | With Sign-to-Derive | Without |
 |------------|---------------------|---------|
-| Read user's API keys | ❌ Impossible | ✅ Possible with key |
-| Read user's encrypted data | ❌ Impossible | ✅ Possible with key |
-| Decrypt past sessions | ❌ Impossible | ✅ Possible with key |
-| Extract secrets from disk | ❌ Impossible | ✅ Possible with key |
-| Respond to legal requests | ❌ Cannot | ✅ Could be compelled |
+| Read user's API keys at rest | Not without the user signature or TPM policy | Possible with operator-held key |
+| Read user's encrypted data at rest | Not without the user signature or TPM policy | Possible with operator-held key |
+| Decrypt past sign-to-derive sessions | Not without the same signature | Possible with stored key |
+| Extract useful secrets from disk | Encrypted blobs only | Plaintext or operator-decryptable blobs |
+| Respond to legal requests for plaintext | No stored plaintext key to hand over | Operator key could be compelled |
 
 ### What We CAN Do
 
@@ -118,17 +117,23 @@ import { deriveKeyFromSignature, encryptWithSignature, decryptWithSignature } fr
 // User signs with their wallet
 const signature = await wallet.signMessage('Encrypt my data');
 
-// Server encrypts - but never sees the key!
+// Server encrypts with a transient derived key; helper wipes it after use.
 const encrypted = encryptWithSignature('my-api-key', signature);
 
 // User decrypts with same signature
-const decrypted = decryptWithSignature(encrypted, signature);
+const decrypted = decryptWithSignature(
+  encrypted.encrypted,
+  encrypted.iv,
+  encrypted.authTag,
+  signature
+);
 ```
 
-The magic: `keccak256(signature) → 32-byte key`
+The derivation: `SHA-256(signature) -> 32-byte key`
 
-- The server receives the signature, not the key
+- The server receives the signature, not the wallet private key
 - Every signature produces a unique key
+- Helper APIs validate signature hex encoding and wipe the derived key buffer after use
 - Without the signature, the data is cryptographically inaccessible
 
 ### 3. TPM-Backed Master Key
@@ -136,24 +141,23 @@ The magic: `keccak256(signature) → 32-byte key`
 For non-sign-to-derive encryption (system-level secrets):
 
 ```typescript
-import { initMasterKey, sealMasterKey, unsealMasterKey } from '@rickydata/security-kernel';
+import { sealMasterKey, unsealMasterKey } from '@rickydata/security-kernel';
+import { randomBytes } from 'crypto';
 
-// Production: TPM must be available (container FAILS if unavailable)
-initMasterKey({
-  sealedKeyPath: '/var/lib/agent-gateway/secrets/master-key.sealed',
-  allowFallback: false  // Required: TPM for production
-});
+const storagePath = '/var/lib/agent-gateway/secrets/master-key.sealed';
+const masterKey = randomBytes(32);
 
-// Master key is sealed to TPM hardware
+// Production: requires a TPM 2.0 device and tpm2-tools; fails closed otherwise.
 sealMasterKey(masterKey, storagePath);
 
-// On restart: TPM unseals the master key
+// On restart: TPM policy session unseals the master key if PCR state matches.
 const key = unsealMasterKey(storagePath);
 ```
 
-- **TPM 2.0**: Hardware-backed key protection
-- **PCR Binding**: Key only unseals if boot state matches
-- **No Key in Memory**: Master key loaded only when needed
+- **TPM 2.0**: Hardware-backed key protection through `tpm2_create`, `tpm2_load`, and `tpm2_unseal`
+- **PCR Binding**: Default policy `sha256:0,1,2,3,4,5,7`, overrideable via `TPM_PCR_LIST`
+- **Fail Closed**: The production path does not use a software TPM simulation
+- **Bounded Memory Lifetime**: Keys exist only while being sealed, unsealed, or used; callers should wipe buffers after use
 
 ---
 
@@ -165,7 +169,7 @@ Visit **[https://mcpmarketplace.rickydata.org/security](https://mcpmarketplace.r
 
 This page provides:
 - **TEE Attestation Report**: Cryptographic proof that code runs in AMD SEV-SNP
-- **Security Kernel Code Hash**: SHA-256 of this package's source
+- **Runtime Code Hash**: SHA-256 of the deployed private gateway build
 - **Live Status**: Current trust state, PCR measurements, key status
 
 ### Option 2: Verify the Code Yourself
@@ -188,9 +192,10 @@ This page provides:
    # Hash the dist/ folder contents
    ```
 
-4. **Compare with attestation**:
-   - The attestation quote includes this hash
-   - Match = code hasn't been tampered with
+4. **Compare with deployment metadata**:
+   - The live gateway attestation proves the private production image currently running
+   - The public kernel package proves the auditable crypto primitives shipped for review
+   - Customer-facing provenance should bind package version/integrity to the deployed image before treating the public package as an exact runtime proof
 
 ### Option 3: Verify TEE Attestation
 
@@ -207,7 +212,7 @@ curl -s https://agents.rickydata.org/health | jq '.securityPosture'
 # }
 ```
 
-Compare the `codeHash` with the hash of this package.
+Compare the `codeHash` against the deployed image provenance. The security kernel package is the public audit surface for the crypto primitives; it is not by itself a complete hash of the production runtime image.
 
 ---
 
@@ -344,7 +349,7 @@ npm install @rickydata/security-kernel
 
 - Node.js 18+
 - TypeScript 5.3+ (if using TypeScript)
-- TPM 2.0 (for production use; mock available for testing)
+- TPM 2.0 plus `tpm2-tools` for production sealing; mock mode is for unit tests only
 
 ---
 
@@ -373,7 +378,7 @@ npm run build
 
 ### For Operators
 
-1. **Always use TPM in production**: Set `allowFallback: false`
+1. **Always use real TPM in production**: production sealing requires TPM 2.0 and `tpm2-tools`
 2. **Call secureWipe()**: After encrypt/decrypt operations
 3. **Handle key rotation**: Use persistent store with multiple keys
 

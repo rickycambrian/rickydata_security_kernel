@@ -3,10 +3,10 @@
  * Sign-to-Derive Key Derivation
  *
  * Derives an encryption key from an Ethereum signature.
- * This enables true user-controlled encryption:
+ * This enables signature-derived encryption when callers verify the signature:
  * - User signs a message with their wallet
  * - Signature is used to derive the encryption key
- * - Only the user can encrypt/decrypt (operator cannot read)
+ * - The derived key is not persisted by these helpers and is wiped after use
  */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -63,6 +63,9 @@ function deriveKeyFromSignature(signature) {
     if (normalizedSig.length !== 130) {
         throw new Error('Invalid signature length: expected 65 bytes (130 hex chars)');
     }
+    if (!/^[0-9a-fA-F]{130}$/.test(normalizedSig)) {
+        throw new Error('Invalid signature format: expected hex-encoded Ethereum signature');
+    }
     // Parse signature components
     const r = normalizedSig.slice(0, 64);
     const s = normalizedSig.slice(64, 128);
@@ -83,12 +86,17 @@ function deriveKeyFromSignature(signature) {
  */
 function encryptWithSignature(plaintext, signature) {
     const key = deriveKeyFromSignature(signature);
-    const { encrypted, iv, authTag } = (0, encryption_js_1.encrypt)(plaintext, key);
-    return {
-        encrypted: encrypted.toString('base64'),
-        iv: iv.toString('base64'),
-        authTag: authTag.toString('base64'),
-    };
+    try {
+        const { encrypted, iv, authTag } = (0, encryption_js_1.encrypt)(plaintext, key);
+        return {
+            encrypted: encrypted.toString('base64'),
+            iv: iv.toString('base64'),
+            authTag: authTag.toString('base64'),
+        };
+    }
+    finally {
+        key.fill(0);
+    }
 }
 /**
  * Decrypts a value using AES-256-GCM with a signature-derived key.
@@ -101,6 +109,11 @@ function encryptWithSignature(plaintext, signature) {
  */
 function decryptWithSignature(encryptedBase64, ivBase64, authTagBase64, signature) {
     const key = deriveKeyFromSignature(signature);
-    return (0, encryption_js_1.decrypt)(Buffer.from(encryptedBase64, 'base64'), Buffer.from(ivBase64, 'base64'), Buffer.from(authTagBase64, 'base64'), key);
+    try {
+        return (0, encryption_js_1.decrypt)(Buffer.from(encryptedBase64, 'base64'), Buffer.from(ivBase64, 'base64'), Buffer.from(authTagBase64, 'base64'), key);
+    }
+    finally {
+        key.fill(0);
+    }
 }
 //# sourceMappingURL=sign-to-derive.js.map

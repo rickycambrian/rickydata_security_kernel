@@ -129,10 +129,10 @@ The security kernel source is available at: [github.com/rickycambrian/rickydata_
 
 The kernel includes TPM-based key sealing for protecting the master encryption key at rest.
 
-### Production vs. Simulation
+### Production vs. Test Modes
 
-- **Production**: Uses the Linux TPM 2.0 interface (`/dev/tpm0` or `/dev/tpmrm0`) with PCR-bound sealing. Keys are bound to the platform's measured boot state and cannot be extracted or used on a different machine.
-- **Simulation**: When a TPM device is detected but the TPM2 command interface is not wired, the code falls back to a software simulation using `SHA-256(devicePath)` as the sealing key. **This provides NO hardware binding or anti-extraction guarantees.** A `console.warn` is emitted when this path executes. It exists only for development and integration testing.
+- **Production**: Uses the Linux TPM 2.0 interface (`/dev/tpm0` or `/dev/tpmrm0`) and `tpm2-tools` with PCR-bound sealing. Keys are bound to the platform's measured boot state and cannot be unsealed on a different machine or incompatible PCR state.
+- **Fail closed**: If the TPM device or required TPM2 commands are unavailable, production seal/unseal throws. There is no software sealing fallback in the production path.
 - **Mock mode**: For unit tests, `enableTpmMock()` provides deterministic in-memory seal/unseal without any device dependency.
 
 ---
@@ -144,7 +144,7 @@ The kernel includes TPM-based key sealing for protecting the master encryption k
 | Symmetric encryption | AES-256-GCM | 256-bit | Authenticated encryption with random IV |
 | Key derivation (sign-to-derive) | SHA-256 | 256-bit | Deterministic from Ethereum signature |
 | Key derivation (master key) | HKDF-SHA256 | 256-bit | Per-wallet keys from master key |
-| TPM sealing | AES-256-GCM (simulated) | 256-bit | Hardware-bound in production |
+| TPM sealing | TPM2 sealed object with policy PCR | 256-bit secret input | Hardware-bound in production |
 | IV generation | `crypto.randomBytes` | 96-bit | Fresh random IV per encryption |
 | Auth tag | GCM built-in | 128-bit | Integrity and authenticity verification |
 
