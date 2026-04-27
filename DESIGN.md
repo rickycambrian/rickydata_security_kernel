@@ -1,15 +1,15 @@
 # Security Kernel API Design Document
 
-**Package**: `@rickycambrian/security-kernel`
-**Version**: 1.0.0 (Phase 1)
+**Package**: `@rickydata/security-kernel`
+**Status**: Historical design notes. The implementation in `src/`, `SECURITY.md`, and `README.md` is authoritative.
 **Target**: Public npm distribution
-**Repository**: `/Users/riccardoesclapon/Documents/github/rickydata_security_kernel/`
+**Repository**: `github.com/rickycambrian/rickydata_security_kernel`
 
 ---
 
 ## Executive Summary
 
-The Security Kernel provides a portable TypeScript library for cryptographic key management, user-controlled encryption (sign-to-derive), and TPM-backed secret sealing. It extracts battle-tested security primitives from the agent gateway for use by the broader Rickydata platform and external developers.
+The Security Kernel provides a portable TypeScript library for cryptographic key management, user-controlled encryption (sign-to-derive), and TPM-backed secret sealing. The current production TPM path uses real `tpm2-tools` policy-PCR sealing and fails closed when the TPM interface is unavailable.
 
 ---
 
@@ -17,7 +17,7 @@ The Security Kernel provides a portable TypeScript library for cryptographic key
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    @rickycambrian/security-kernel               │
+│                    @rickydata/security-kernel                   │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
 │  │  Encryption │  │   Key       │  │      TPM Vault          │ │
@@ -33,8 +33,8 @@ The Security Kernel provides a portable TypeScript library for cryptographic key
 ### Core Principles
 
 1. **Defense in Depth**: All secrets encrypted at rest and in transit
-2. **Zero-Knowledge**: Sign-to-derive mode ensures server never sees encryption keys
-3. **Hardware-Backed**: TPM sealing for production, software fallback for development
+2. **Zero-Knowledge**: Sign-to-derive mode avoids persistent operator-held encryption keys; derived keys are transient and must be wiped
+3. **Hardware-Backed**: TPM sealing for production; mock mode only for tests
 4. **Memory Safety**: Secure wipe primitives for all sensitive buffers
 5. **Auditability**: Comprehensive metrics and decision logging
 
@@ -120,13 +120,12 @@ export interface EncryptedData {
  */
 export interface MasterKeyConfig {
   sealedKeyPath?: string;
-  allowFallback?: boolean;
 }
 
 /**
  * Initializes the key derivation system
  * TPM mode: loads existing sealed key or creates new
- * Fallback mode: random key (development only)
+ * Production mode fails closed when TPM sealing is unavailable
  */
 export function initMasterKey(config?: MasterKeyConfig): void;
 
@@ -417,7 +416,7 @@ export function resetReleaseGuardForTests(): void;
 ### 4.1 Basic Encryption
 
 ```typescript
-import { encrypt, decrypt, secureWipe } from '@rickycambrian/security-kernel/encryption';
+import { encrypt, decrypt, secureWipe } from '@rickydata/security-kernel/encryption';
 
 const key = crypto.randomBytes(32);
 const { encrypted, iv, authTag } = encrypt('secret value', key);
@@ -434,12 +433,12 @@ secureWipe(key);
 import {
   encryptWithSignature,
   decryptWithSignature
-} from '@rickycambrian/security-kernel/key-derivation';
+} from '@rickydata/security-kernel/key-derivation';
 
 // User signs a message with their wallet
 const signature = await wallet.signMessage('Encrypt my data');
 
-// Server encrypts (never sees the key)
+// Server encrypts with a transient derived key
 const { encrypted, iv, authTag } = encryptWithSignature(
   'my-api-key',
   signature
@@ -463,17 +462,13 @@ import {
   sealMasterKey,
   unsealMasterKey,
   hasSealedMasterKey
-} from '@rickycambrian/security-kernel/key-derivation';
+} from '@rickydata/security-kernel/key-derivation';
 
-// Initialize (TPM required in production)
-initMasterKey({
-  sealedKeyPath: '/var/lib/myapp/secrets/master-key.sealed',
-  allowFallback: process.env.NODE_ENV === 'development'
-});
+const sealedKeyPath = '/var/lib/myapp/secrets/master-key.sealed';
 
 // Later: check if sealed key exists
-if (hasSealedMasterKey('/var/lib/myapp/secrets/master-key.sealed')) {
-  const key = unsealMasterKey('/var/lib/myapp/secrets/master-key.sealed');
+if (hasSealedMasterKey(sealedKeyPath)) {
+  const key = unsealMasterKey(sealedKeyPath);
   // Use key...
 }
 
@@ -484,7 +479,7 @@ clearMasterKey();
 ### 4.4 Persistent Storage with Key Rotation
 
 ```typescript
-import { PersistentApiKeyStore } from '@rickycambrian/security-kernel/persistent-store';
+import { PersistentApiKeyStore } from '@rickydata/security-kernel/persistent-store';
 
 const store = new PersistentApiKeyStore({
   baseDir: '/var/lib/myapp/vault',
@@ -631,7 +626,7 @@ rickydata_security_kernel/
 
 ```json
 {
-  "name": "@rickycambrian/security-kernel",
+  "name": "@rickydata/security-kernel",
   "version": "1.0.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -694,7 +689,7 @@ After package publication:
 import { encrypt } from '../secrets/encryption.js';
 
 // After (package import)
-import { encrypt } from '@rickycambrian/security-kernel/encryption';
+import { encrypt } from '@rickydata/security-kernel/encryption';
 ```
 
 ### Environment Variable Mapping
@@ -702,7 +697,6 @@ import { encrypt } from '@rickycambrian/security-kernel/encryption';
 | Agent Gateway Env | Security Kernel |
 |-------------------|-----------------|
 | `TPM_SEALED_KEY_PATH` | Pass via `MasterKeyConfig.sealedKeyPath` |
-| `ALLOW_MASTER_KEY_FALLBACK` | Pass via `MasterKeyConfig.allowFallback` |
 | `NODE_ENV=test` | Auto-enables mock in tests |
 
 ---

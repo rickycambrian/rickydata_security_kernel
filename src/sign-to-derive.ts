@@ -29,6 +29,9 @@ export function deriveKeyFromSignature(signature: string): Buffer {
   if (normalizedSig.length !== 130) {
     throw new Error('Invalid signature length: expected 65 bytes (130 hex chars)');
   }
+  if (!/^[0-9a-fA-F]{130}$/.test(normalizedSig)) {
+    throw new Error('Invalid signature format: expected hex-encoded Ethereum signature');
+  }
 
   // Parse signature components
   const r = normalizedSig.slice(0, 64);
@@ -56,13 +59,17 @@ export function encryptWithSignature(
   signature: string
 ): SignToDeriveResult {
   const key = deriveKeyFromSignature(signature);
-  const { encrypted, iv, authTag } = encrypt(plaintext, key);
+  try {
+    const { encrypted, iv, authTag } = encrypt(plaintext, key);
 
-  return {
-    encrypted: encrypted.toString('base64'),
-    iv: iv.toString('base64'),
-    authTag: authTag.toString('base64'),
-  };
+    return {
+      encrypted: encrypted.toString('base64'),
+      iv: iv.toString('base64'),
+      authTag: authTag.toString('base64'),
+    };
+  } finally {
+    key.fill(0);
+  }
 }
 
 /**
@@ -81,11 +88,14 @@ export function decryptWithSignature(
   signature: string
 ): string {
   const key = deriveKeyFromSignature(signature);
-
-  return decrypt(
-    Buffer.from(encryptedBase64, 'base64'),
-    Buffer.from(ivBase64, 'base64'),
-    Buffer.from(authTagBase64, 'base64'),
-    key
-  );
+  try {
+    return decrypt(
+      Buffer.from(encryptedBase64, 'base64'),
+      Buffer.from(ivBase64, 'base64'),
+      Buffer.from(authTagBase64, 'base64'),
+      key
+    );
+  } finally {
+    key.fill(0);
+  }
 }

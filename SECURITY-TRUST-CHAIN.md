@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes how `@rickydata/security-kernel` provides the cryptographic foundation for both the MCP Gateway and Agent Gateway TEEs, enabling public auditability of the exact same security code in both systems.
+This document describes how `@rickydata/security-kernel` provides the public audit surface for the cryptographic primitives used by the MCP Gateway and Agent Gateway TEEs. Production attestation proves the private gateway images currently running; this package proves the source-available encryption, key-derivation, and TPM-sealing primitives reviewers can inspect.
 
 ## Trust Chain
 
@@ -42,7 +42,7 @@ The security kernel supports two encryption models:
 | **In-Memory** | MCP Gateway | Fresh 32-byte random key each startup | None (restart = clean slate) |
 | **TPM-Sealed** | Agent Gateway | PCR-bound TPM key | Survives restarts via TPM unsealing |
 
-Both models use the same AES-256-GCM encryption and HKDF key derivation code, just with different master key sources.
+Both models use AES-256-GCM encryption and HKDF-style key separation, with different master key sources.
 
 ## Verification Commands
 
@@ -67,7 +67,7 @@ curl -s https://agents.rickydata.org/health | jq '.securityPosture'
 ### 4. Verify MCP Gateway Uses In-Memory Security Kernel
 ```bash
 curl -s https://mcp.rickydata.org/health | jq '.securityPosture.keySources'
-# Expected: vaultEncryptionKey uses "gateway_secret_key_fallback"
+# Expected: vaultEncryptionKey is derived from the gateway TPM-backed key source
 ```
 
 ### 5. Verify Agent Gateway Uses TPM-Sealed Security Kernel
@@ -83,7 +83,8 @@ curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources'
 curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources.byokVaultEncryptionKey'
 # Must return: "tpm_pcr"
 # This key encrypts user API keys at rest. When TPM-bound, the operator cannot extract it.
-# The key is randomly generated on the VM and sealed to TPM — it never exists in GitHub secrets.
+# The key is randomly generated on the VM and sealed to TPM. It must not be
+# passed to the runtime container from GitHub secrets.
 ```
 
 ### 7. Public Audit - Verify Security Kernel Source Code
@@ -104,13 +105,13 @@ With this trust chain:
 
 | Capability | Guarantee |
 |------------|------------|
-| Read user API keys | ❌ Impossible (Sign-to-derive or per-wallet derived keys) |
-| Read encrypted data | ❌ Impossible (key derived from wallet signature or random) |
-| Extract secrets from disk | ❌ Impossible (TPM-sealed or in-memory only) |
-| Recover user secrets after TPM reset | ❌ Impossible (BYOK vault key is randomly generated and sealed — never in GitHub secrets) |
-| Operator reads BYOK vault key | ❌ Impossible (never falls back to operator-accessible `LEDGER_ENCRYPTION_KEY`) |
-| Modify security kernel | ❌ Impossible (attestation detects code changes) |
-| Fake attestation | ❌ Impossible (hardware-rooted AMD SEV-SNP) |
+| Read user API keys at rest | Not available without the user-controlled signature or TPM-unsealed per-wallet key |
+| Read encrypted data at rest | Not available from stored blobs alone |
+| Extract useful secrets from disk | Stored as encrypted blobs; TPM policy or signature is required to decrypt |
+| Recover user secrets after TPM reset | Not available unless the original TPM-sealed context and PCR policy can be restored |
+| Operator reads BYOK vault key | Deployment must keep this TPM-bound and must not fall back to `LEDGER_ENCRYPTION_KEY` |
+| Modify deployed security code silently | Attestation and image provenance should reveal code changes |
+| Fake attestation | Blocked by hardware-rooted AMD SEV-SNP verification when checks pass |
 
 ## Architecture Details
 
@@ -124,7 +125,7 @@ With this trust chain:
 ### Agent Gateway (TPM-Sealed Model)
 - **Master Key**: Sealed in TPM with PCR policy (sha256:0,1,2,3,4,5,7)
 - **Per-User Keys**: HKDF-derived from unsealed master key
-- **BYOK Vault Key**: Randomly generated on VM and sealed to TPM. Never stored in GitHub secrets. If TPM reset occurs, a fresh key is generated (old user secrets are unrecoverable by design — zero-knowledge preserved).
+- **BYOK Vault Key**: Randomly generated on VM and sealed to TPM. It should not be configured as a GitHub secret or passed into the runtime container. If TPM reset occurs, a fresh key is generated only when no existing encrypted wallet data would be orphaned.
 - **Recovery**: Automatic unsealing on restart if TPM state unchanged. Deploy auto-heals vTPM slot exhaustion via `tpm2_clear`.
 - **Fallback**: Infrastructure keys (JWT, ledger) use env vars if TPM unavailable. BYOK vault key **never** falls back to an operator-readable key.
 
@@ -137,10 +138,10 @@ With this trust chain:
 
 ## Sync Workflow
 
-The security kernel is synced from both gateways to the npm package:
+The security kernel should be synced from both gateways to the npm package:
 
 1. Agent Gateway security files → TPM-sealed model in security-kernel
 2. MCP Gateway security files → In-memory model in security-kernel
 3. Both models published together in `@rickydata/security-kernel`
 
-This ensures public auditability of the exact same crypto code running in both TEEs.
+Release discipline requirement: publish the security kernel, update both gateway lockfiles to that exact package version/integrity, and expose that package provenance from the live gateways. Without those three steps, this public repository is a strong review artifact but not a complete proof that the deployed production image is byte-for-byte using the same package.

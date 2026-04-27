@@ -1,0 +1,15 @@
+node_modules/
+*.log
+.env
+.env.local
+.DS_Store
+coverage/
+.vscode/
+.idea/
+package-lock.json
+.git/
+.github/
+.gitignore
+tsconfig*.json
+vitest*.ts
+tests/
