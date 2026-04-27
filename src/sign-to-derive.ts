@@ -2,10 +2,10 @@
  * Sign-to-Derive Key Derivation
  *
  * Derives an encryption key from an Ethereum signature.
- * This enables true user-controlled encryption:
+ * This enables signature-derived encryption when callers verify the signature:
  * - User signs a message with their wallet
  * - Signature is used to derive the encryption key
- * - Only the user can encrypt/decrypt (operator cannot read)
+ * - The derived key is not persisted by these helpers and is wiped after use
  */
 
 import * as crypto from 'crypto';

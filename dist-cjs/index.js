@@ -4,8 +4,8 @@
  *
  * Provides:
  * - AES-256-GCM encryption/decryption
- * - TPM-based sealing/unsealing (with mock support)
- * - Sign-to-derive key derivation (user-controlled encryption)
+ * - TPM2 policy-PCR sealing/unsealing (mock mode only for tests)
+ * - Sign-to-derive key derivation (signature-derived encryption)
  * - HKDF key derivation from master key
  * - In-memory encryption (fresh random key each startup)
  */
