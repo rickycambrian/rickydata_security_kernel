@@ -90,6 +90,7 @@ These endpoints are available on the production gateways for independent verific
 | `GET /api/verify` | Full attestation verification — returns TEE status, code hash match, VCEK validation |
 | `GET /api/attestation/report` | Raw SNP attestation report with VCEK certificate chain |
 | `GET /api/attestation/build-info` | Code hash (SHA-256 of `dist/*.js`), build timestamp, git commit |
+| `GET /api/attestation/provenance` | CI/CD provenance, npm package integrity, and Rust trust-plane helper hashes |
 
 ### Step-by-Step Verification
 
@@ -123,16 +124,25 @@ The VCEK can be independently verified against AMD's KDS (Key Distribution Servi
 
 The security kernel source is available at: [github.com/rickycambrian/rickydata_security_kernel](https://github.com/rickycambrian/rickydata_security_kernel)
 
+**5. Verify the deployed trust-plane binding:**
+
+```bash
+curl -s https://mcp.rickydata.org/api/attestation/provenance | \
+  jq '{securityKernel: .securityKernel, trustPlane: .trustPlane}'
+```
+
+The `securityKernel` object binds this npm package to the deployed gateway lockfile. The `trustPlane` object binds the Rust `sandboxd` and `trust-plane` helper binaries used for sandbox lifecycle, secret-release posture, and proof canonicalization.
+
 ---
 
 ## TPM Sealing
 
 The kernel includes TPM-based key sealing for protecting the master encryption key at rest.
 
-### Production vs. Simulation
+### Production vs. Test Modes
 
-- **Production**: Uses the Linux TPM 2.0 interface (`/dev/tpm0` or `/dev/tpmrm0`) with PCR-bound sealing. Keys are bound to the platform's measured boot state and cannot be extracted or used on a different machine.
-- **Simulation**: When a TPM device is detected but the TPM2 command interface is not wired, the code falls back to a software simulation using `SHA-256(devicePath)` as the sealing key. **This provides NO hardware binding or anti-extraction guarantees.** A `console.warn` is emitted when this path executes. It exists only for development and integration testing.
+- **Production**: Uses the Linux TPM 2.0 interface (`/dev/tpm0` or `/dev/tpmrm0`) and `tpm2-tools` with PCR-bound sealing. Keys are bound to the platform's measured boot state and cannot be unsealed on a different machine or incompatible PCR state.
+- **Fail closed**: If the TPM device or required TPM2 commands are unavailable, production seal/unseal throws. There is no software sealing fallback in the production path.
 - **Mock mode**: For unit tests, `enableTpmMock()` provides deterministic in-memory seal/unseal without any device dependency.
 
 ---
@@ -144,7 +154,7 @@ The kernel includes TPM-based key sealing for protecting the master encryption k
 | Symmetric encryption | AES-256-GCM | 256-bit | Authenticated encryption with random IV |
 | Key derivation (sign-to-derive) | SHA-256 | 256-bit | Deterministic from Ethereum signature |
 | Key derivation (master key) | HKDF-SHA256 | 256-bit | Per-wallet keys from master key |
-| TPM sealing | AES-256-GCM (simulated) | 256-bit | Hardware-bound in production |
+| TPM sealing | TPM2 sealed object with policy PCR | 256-bit secret input | Hardware-bound in production |
 | IV generation | `crypto.randomBytes` | 96-bit | Fresh random IV per encryption |
 | Auth tag | GCM built-in | 128-bit | Integrity and authenticity verification |
 

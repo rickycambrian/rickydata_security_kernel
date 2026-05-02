@@ -56,7 +56,10 @@ exports.removeSealedMasterKey = removeSealedMasterKey;
 const crypto = __importStar(require("crypto"));
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const child_process_1 = require("child_process");
 const constants_js_1 = require("./constants.js");
+const PCR_SELECTION = process.env.TPM_PCR_LIST || 'sha256:0,1,2,3,4,5,7';
 // Track TPM availability
 let tpmAvailable = null;
 let tpmDevicePath = null;
@@ -77,22 +80,85 @@ function checkTpmAvailability() {
     if (tpmAvailable !== null) {
         return { available: tpmAvailable, devicePath: tpmDevicePath || undefined };
     }
-    // Check for TPM devices
-    const tpmPaths = ['/dev/tpm0', '/dev/tpmrm0'];
+    const requiredCommands = [
+        'tpm2_getcap',
+        'tpm2_createprimary',
+        'tpm2_create',
+        'tpm2_load',
+        'tpm2_unseal',
+        'tpm2_pcrread',
+        'tpm2_createpolicy',
+        'tpm2_startauthsession',
+        'tpm2_policypcr',
+        'tpm2_flushcontext',
+    ];
+    for (const command of requiredCommands) {
+        if (!commandAvailable(command)) {
+            tpmAvailable = false;
+            return { available: false, reason: `${command} not found`, devicePath: undefined };
+        }
+    }
+    const overridePath = process.env.RICKYDATA_TPM_DEVICE_PATH;
+    const tpmPaths = overridePath ? [overridePath] : ['/dev/tpmrm0', '/dev/tpm0'];
+    let lastProbeFailure;
     for (const devicePath of tpmPaths) {
         try {
             if (fs.existsSync(devicePath)) {
+                const tcti = tctiForDevice(devicePath);
+                execTpm('tpm2_getcap', ['properties-fixed'], { tcti });
                 tpmAvailable = true;
                 tpmDevicePath = devicePath;
                 return { available: true, devicePath };
             }
         }
-        catch {
-            // Continue to next device
+        catch (err) {
+            lastProbeFailure = `TPM device probe failed for ${devicePath}: ${err instanceof Error ? err.message : String(err)}`;
         }
     }
     tpmAvailable = false;
-    return { available: false, reason: 'No TPM device found', devicePath: undefined };
+    return { available: false, reason: lastProbeFailure || 'No TPM device found', devicePath: undefined };
+}
+function commandAvailable(command) {
+    try {
+        (0, child_process_1.execFileSync)('which', [command], { stdio: 'ignore' });
+        return true;
+    }
+    catch {
+        return false;
+    }
+}
+function tctiForDevice(devicePath) {
+    return `device:${devicePath}`;
+}
+function execTpm(command, args, options) {
+    return (0, child_process_1.execFileSync)(command, args, {
+        input: options?.input,
+        env: {
+            ...process.env,
+            ...(options?.tcti ? { TPM2TOOLS_TCTI: options.tcti } : {}),
+        },
+        stdio: options?.input ? ['pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe'],
+    });
+}
+function tryExecTpm(command, args, options) {
+    try {
+        execTpm(command, args, options);
+    }
+    catch {
+        // TPM context cleanup is best effort.
+    }
+}
+function mkTempDir() {
+    const base = fs.existsSync('/dev/shm') ? '/dev/shm' : os.tmpdir();
+    return fs.mkdtempSync(path.join(base, 'rickydata-tpm-'));
+}
+function cleanupTempDir(dir) {
+    try {
+        fs.rmSync(dir, { recursive: true, force: true });
+    }
+    catch {
+        // Best effort only; temp files contain sealed blobs after successful cleanup.
+    }
 }
 /**
  * Enables mock mode for testing without actual TPM hardware.
@@ -130,9 +196,14 @@ function isTpmMockEnabled() {
 /**
  * Seals data using the TPM.
  *
- * In production, this would use the TPM2_Seal command.
- * For this implementation, we use a simulation that demonstrates
- * the API contract while using software encryption as fallback.
+ * **Production path**: Uses TPM2_Seal via `/dev/tpm0` or `/dev/tpmrm0` to
+ * hardware-bind the sealed blob to the platform's PCR state.
+ *
+ * **No software fallback**: Production fails closed if the TPM device or
+ * required `tpm2-tools` commands are unavailable.
+ *
+ * **Mock mode**: When `enableTpmMock()` has been called, seal/unseal use
+ * deterministic in-memory storage. This is the correct path for unit tests.
  *
  * @param data - 32-byte data to seal
  * @returns TpmSealedData object
@@ -168,28 +239,54 @@ function tpmSeal(data) {
     if (!availability.available) {
         throw new Error(`TPM not available: ${availability.reason}`);
     }
-    // Production implementation would use actual TPM commands here
-    // For now, we demonstrate the concept with software encryption
-    // that would be replaced with TPM2 Seal in production
-    const simulatedTpmKey = crypto.createHash('sha256')
-        .update(availability.devicePath)
-        .digest();
-    const cipher = crypto.createCipheriv('aes-256-gcm', simulatedTpmKey, crypto.randomBytes(12));
-    const sealedData = Buffer.concat([
-        cipher.update(data),
-        cipher.final(),
-        cipher.getAuthTag(),
-    ]);
-    return {
-        version: constants_js_1.TPM_VERSION,
-        sealedData,
-        publicKey: crypto.createHash('sha256').update(simulatedTpmKey).digest(),
-        algorithm: 'aes-256-gcm',
-        createdAt: Date.now(),
-    };
+    const tcti = tctiForDevice(availability.devicePath);
+    const tmpDir = mkTempDir();
+    const primaryCtx = path.join(tmpDir, 'primary.ctx');
+    const policyFile = path.join(tmpDir, 'pcr.policy');
+    const pcrFile = path.join(tmpDir, 'pcr.bin');
+    const inputFile = path.join(tmpDir, 'secret.bin');
+    const publicFile = path.join(tmpDir, 'sealed.pub');
+    const privateFile = path.join(tmpDir, 'sealed.priv');
+    const sealedCtx = path.join(tmpDir, 'sealed.ctx');
+    try {
+        fs.writeFileSync(inputFile, data, { mode: 0o600 });
+        execTpm('tpm2_createprimary', ['-C', 'o', '-g', 'sha256', '-G', 'rsa', '-c', primaryCtx], { tcti });
+        execTpm('tpm2_pcrread', [PCR_SELECTION, '-o', pcrFile], { tcti });
+        execTpm('tpm2_createpolicy', ['--policy-pcr', '-l', PCR_SELECTION, '-f', pcrFile, '-L', policyFile], { tcti });
+        execTpm('tpm2_create', [
+            '-C', primaryCtx,
+            '-g', 'sha256',
+            '-L', policyFile,
+            '-u', publicFile,
+            '-r', privateFile,
+            '-i', inputFile,
+        ], { tcti });
+        execTpm('tpm2_load', ['-C', primaryCtx, '-u', publicFile, '-r', privateFile, '-c', sealedCtx], { tcti });
+        tryExecTpm('tpm2_flushcontext', ['-t'], { tcti });
+        tryExecTpm('tpm2_flushcontext', ['-s'], { tcti });
+        return {
+            version: constants_js_1.TPM_VERSION,
+            sealedData: fs.readFileSync(sealedCtx),
+            publicKey: fs.readFileSync(publicFile),
+            algorithm: 'tpm2-policy-pcr',
+            createdAt: Date.now(),
+            pcrSelection: PCR_SELECTION,
+        };
+    }
+    finally {
+        try {
+            fs.writeFileSync(inputFile, Buffer.alloc(data.length), { flag: 'w' });
+        }
+        catch {
+            // Best effort wipe before directory removal.
+        }
+        cleanupTempDir(tmpDir);
+    }
 }
 /**
  * Unseals TPM-sealed data.
+ *
+ * See `tpmSeal` for details on production TPM and mock-mode execution.
  *
  * @param sealedData - TpmSealedData object from tpmSeal
  * @returns Original 32-byte data
@@ -216,20 +313,28 @@ function tpmUnseal(sealedData) {
     if (!availability.available) {
         throw new Error(`TPM not available: ${availability.reason}`);
     }
-    // Production implementation would use actual TPM2_Unseal command
-    // For now, we demonstrate the concept with software decryption
-    const simulatedTpmKey = crypto.createHash('sha256')
-        .update(availability.devicePath)
-        .digest();
-    // Extract auth tag (last 16 bytes) and ciphertext
-    const authTag = sealedData.sealedData.slice(-16);
-    const ciphertext = sealedData.sealedData.slice(0, -16);
-    const decipher = crypto.createDecipheriv('aes-256-gcm', simulatedTpmKey, crypto.randomBytes(12));
-    decipher.setAuthTag(authTag);
-    return Buffer.concat([
-        decipher.update(ciphertext),
-        decipher.final(),
-    ]);
+    if (sealedData.algorithm !== 'tpm2-policy-pcr') {
+        throw new Error(`Unsupported TPM sealed data algorithm: ${sealedData.algorithm}`);
+    }
+    const tcti = tctiForDevice(availability.devicePath);
+    const tmpDir = mkTempDir();
+    const sealedCtx = path.join(tmpDir, 'sealed.ctx');
+    const sessionCtx = path.join(tmpDir, 'session.ctx');
+    const pcrSelection = sealedData.pcrSelection || PCR_SELECTION;
+    try {
+        fs.writeFileSync(sealedCtx, sealedData.sealedData, { mode: 0o600 });
+        execTpm('tpm2_startauthsession', ['--policy-session', '-S', sessionCtx], { tcti });
+        execTpm('tpm2_policypcr', ['-S', sessionCtx, '-l', pcrSelection], { tcti });
+        const unsealed = execTpm('tpm2_unseal', ['-c', sealedCtx, '-p', `session:${sessionCtx}`], { tcti });
+        tryExecTpm('tpm2_flushcontext', [sessionCtx], { tcti });
+        if (unsealed.length !== 32) {
+            throw new Error(`TPM unsealed data has invalid length: ${unsealed.length}`);
+        }
+        return Buffer.from(unsealed);
+    }
+    finally {
+        cleanupTempDir(tmpDir);
+    }
 }
 /**
  * Seals the master key for persistent storage.
@@ -246,6 +351,7 @@ function sealMasterKey(masterKey, storagePath) {
         publicKey: sealed.publicKey.toString('base64'),
         algorithm: sealed.algorithm,
         createdAt: sealed.createdAt,
+        pcrSelection: sealed.pcrSelection,
     };
     // Ensure directory exists
     const dir = path.dirname(storagePath);
@@ -272,6 +378,7 @@ function unsealMasterKey(storagePath) {
         publicKey: Buffer.from(data.publicKey, 'base64'),
         algorithm: data.algorithm,
         createdAt: data.createdAt,
+        pcrSelection: data.pcrSelection,
     };
     return tpmUnseal(sealedData);
 }

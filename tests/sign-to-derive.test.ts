@@ -35,6 +35,10 @@ describe('sign-to-derive', () => {
       expect(() => deriveKeyFromSignature('abcd')).toThrow('Invalid signature length');
     });
 
+    it('should throw on non-hex signatures with valid length', () => {
+      expect(() => deriveKeyFromSignature('zz'.repeat(65))).toThrow('Invalid signature format');
+    });
+
     it('should throw on wrong signature length', () => {
       expect(() => deriveKeyFromSignature('aa'.repeat(64))).toThrow('Invalid signature length');
       expect(() => deriveKeyFromSignature('aa'.repeat(66))).toThrow('Invalid signature length');

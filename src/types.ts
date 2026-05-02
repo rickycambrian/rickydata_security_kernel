@@ -16,6 +16,7 @@ export interface TpmSealedData {
   publicKey: Buffer;
   algorithm: string;
   createdAt: number;
+  pcrSelection?: string;
 }
 
 export interface TpmAvailability {
@@ -30,6 +31,7 @@ export interface SealedMasterKeyJson {
   publicKey: string;
   algorithm: string;
   createdAt: number;
+  pcrSelection?: string;
 }
 
 export interface SignToDeriveResult {

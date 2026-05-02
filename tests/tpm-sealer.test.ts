@@ -19,6 +19,8 @@ describe('tpm-sealer', () => {
   // Mock mode test data
   const mockSeed = Buffer.from('mock-tpm-seed-data');
   let tempDir: string;
+  const originalPath = process.env.PATH;
+  const originalTpmDevice = process.env.RICKYDATA_TPM_DEVICE_PATH;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tpm-test-'));
@@ -26,11 +28,95 @@ describe('tpm-sealer', () => {
 
   afterEach(() => {
     disableTpmMock();
+    process.env.PATH = originalPath;
+    if (originalTpmDevice === undefined) {
+      delete process.env.RICKYDATA_TPM_DEVICE_PATH;
+    } else {
+      process.env.RICKYDATA_TPM_DEVICE_PATH = originalTpmDevice;
+    }
     // Clean up temp directory
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true });
     }
   });
+
+  function installFakeTpmTools(binDir: string): void {
+    const script = `#!/bin/sh
+cmd="$(basename "$0")"
+value_for_flag() {
+  flag="$1"
+  shift
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = "$flag" ]; then
+      echo "$2"
+      return 0
+    fi
+    shift
+  done
+}
+case "$cmd" in
+  tpm2_getcap)
+    echo "TPM2_PT_MANUFACTURER: 0x5249434b"
+    ;;
+  tpm2_createprimary)
+    ctx="$(value_for_flag -c "$@")"
+    [ -n "$ctx" ] && printf primary > "$ctx"
+    ;;
+  tpm2_pcrread)
+    out="$(value_for_flag -o "$@")"
+    [ -n "$out" ] && printf pcr > "$out"
+    ;;
+  tpm2_createpolicy)
+    policy="$(value_for_flag -L "$@")"
+    [ -n "$policy" ] && printf policy > "$policy"
+    ;;
+  tpm2_create)
+    in_file="$(value_for_flag -i "$@")"
+    pub="$(value_for_flag -u "$@")"
+    priv="$(value_for_flag -r "$@")"
+    [ -n "$pub" ] && printf public > "$pub"
+    [ -n "$priv" ] && cp "$in_file" "$priv"
+    ;;
+  tpm2_load)
+    priv="$(value_for_flag -r "$@")"
+    ctx="$(value_for_flag -c "$@")"
+    cp "$priv" "$ctx"
+    ;;
+  tpm2_startauthsession)
+    session="$(value_for_flag -S "$@")"
+    [ -n "$session" ] && printf session > "$session"
+    ;;
+  tpm2_policypcr)
+    ;;
+  tpm2_unseal)
+    ctx="$(value_for_flag -c "$@")"
+    cat "$ctx"
+    ;;
+  tpm2_flushcontext)
+    ;;
+  *)
+    echo "unexpected fake tpm command: $cmd" >&2
+    exit 1
+    ;;
+esac
+`;
+
+    for (const command of [
+      'tpm2_getcap',
+      'tpm2_createprimary',
+      'tpm2_create',
+      'tpm2_load',
+      'tpm2_unseal',
+      'tpm2_pcrread',
+      'tpm2_createpolicy',
+      'tpm2_startauthsession',
+      'tpm2_policypcr',
+      'tpm2_flushcontext',
+    ]) {
+      const file = path.join(binDir, command);
+      fs.writeFileSync(file, script, { mode: 0o755 });
+    }
+  }
 
   describe('mock mode', () => {
     it('should enable and disable mock mode', () => {
@@ -108,6 +194,28 @@ describe('tpm-sealer', () => {
       const shortData = Buffer.from('short');
       expect(() => tpmSeal(shortData)).toThrow('Sealed data must be 32 bytes');
     });
+  });
+
+  describe('real TPM command path', () => {
+    it('should seal and unseal via tpm2 policy commands when TPM is available', () => {
+      disableTpmMock();
+      const binDir = path.join(tempDir, 'bin');
+      fs.mkdirSync(binDir);
+      installFakeTpmTools(binDir);
+      const fakeDevice = path.join(tempDir, 'tpmrm0');
+      fs.writeFileSync(fakeDevice, '');
+      process.env.PATH = `${binDir}:${originalPath || ''}`;
+      process.env.RICKYDATA_TPM_DEVICE_PATH = fakeDevice;
+
+      const originalData = Buffer.alloc(32, 7);
+      const sealed = tpmSeal(originalData);
+
+      expect(sealed.algorithm).toBe('tpm2-policy-pcr');
+      expect(sealed.pcrSelection).toBe('sha256:0,1,2,3,4,5,7');
+
+      const unsealed = tpmUnseal(sealed);
+      expect(unsealed.equals(originalData)).toBe(true);
+    }, 15000);
   });
 
   describe('sealMasterKey / unsealMasterKey', () => {
