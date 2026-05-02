@@ -21,7 +21,8 @@ This document describes how `@rickydata/security-kernel` provides the public aud
 │  2. MCP GATEWAY TEE (mcp-gateway)                        │
 │     ├─ AMD SEV-SNP confidential VM                          │
 │     ├─ In-memory encryption (fresh random key each startup)  │
-│     └─ Attestation verified at /health                       │
+│     ├─ Rust trust plane for sandbox/secret/proof boundaries  │
+│     └─ Attestation verified at /health + /api/attestation    │
 │                           │                                      │
 │                           ▼                                      │
 │  3. AGENT GATEWAY TEE (mcp-agent-gateway)                │
@@ -43,6 +44,28 @@ The security kernel supports two encryption models:
 | **TPM-Sealed** | Agent Gateway | PCR-bound TPM key | Survives restarts via TPM unsealing |
 
 Both models use AES-256-GCM encryption and HKDF-style key separation, with different master key sources.
+
+## Rust Trust Plane Boundary
+
+`@rickydata/security-kernel` is the public audit surface for cryptography. The MCP Gateway also ships Rust trust-plane helpers inside the production image for the hard runtime boundary:
+
+| Helper | Runtime responsibility | Public proof |
+|--------|------------------------|--------------|
+| `sandboxd` | Container planning/start policy, network posture, per-session isolation | `.trustPlane.binaries.sandboxd.sha256` in MCP provenance |
+| `trust-plane` | Secret-release decisions and proof/receipt canonicalization | `.trustPlane.binaries.trustPlane.sha256` in MCP provenance |
+
+This repository does not contain those Rust helpers. They live in `mcp_deployments_registry/rust/` and are surfaced to reviewers by the gateway provenance endpoint:
+
+```bash
+curl -s https://mcp.rickydata.org/api/attestation/provenance | \
+  jq '{securityKernel: .securityKernel, trustPlane: .trustPlane}'
+```
+
+The complete trust chain is therefore:
+
+1. Audit this package for encryption, sign-to-derive, and TPM sealing.
+2. Verify the gateway lockfile pins the package version and npm integrity.
+3. Verify the gateway image provenance and Rust helper hashes match the deployed runtime.
 
 ## Verification Commands
 
@@ -97,6 +120,16 @@ git clone https://github.com/rickycambrian/rickydata_security_kernel.git
 cd rickydata_security_kernel
 npm run build
 npm test
+```
+
+### 8. Verify Rust Trust Plane Binding
+```bash
+curl -s https://mcp.rickydata.org/api/attestation/provenance | \
+  jq '.trustPlane | {cargoLockHashSha256, runtimeModes, binaries}'
+# Expected during rollout:
+# - binaries.sandboxd.matchesManifest == true
+# - binaries.trustPlane.matchesManifest == true
+# - runtimeModes.sandboxd is shadow, permissive, or enforced
 ```
 
 ## Security Guarantees

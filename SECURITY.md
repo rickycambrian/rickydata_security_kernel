@@ -90,6 +90,7 @@ These endpoints are available on the production gateways for independent verific
 | `GET /api/verify` | Full attestation verification — returns TEE status, code hash match, VCEK validation |
 | `GET /api/attestation/report` | Raw SNP attestation report with VCEK certificate chain |
 | `GET /api/attestation/build-info` | Code hash (SHA-256 of `dist/*.js`), build timestamp, git commit |
+| `GET /api/attestation/provenance` | CI/CD provenance, npm package integrity, and Rust trust-plane helper hashes |
 
 ### Step-by-Step Verification
 
@@ -122,6 +123,15 @@ The VCEK can be independently verified against AMD's KDS (Key Distribution Servi
 **4. Audit the source code:**
 
 The security kernel source is available at: [github.com/rickycambrian/rickydata_security_kernel](https://github.com/rickycambrian/rickydata_security_kernel)
+
+**5. Verify the deployed trust-plane binding:**
+
+```bash
+curl -s https://mcp.rickydata.org/api/attestation/provenance | \
+  jq '{securityKernel: .securityKernel, trustPlane: .trustPlane}'
+```
+
+The `securityKernel` object binds this npm package to the deployed gateway lockfile. The `trustPlane` object binds the Rust `sandboxd` and `trust-plane` helper binaries used for sandbox lifecycle, secret-release posture, and proof canonicalization.
 
 ---
 

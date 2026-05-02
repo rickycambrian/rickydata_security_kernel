@@ -165,14 +165,24 @@ const key = unsealMasterKey(storagePath);
 
 ### Option 1: Security Dashboard
 
-Visit **[https://mcpmarketplace.rickydata.org/security](https://mcpmarketplace.rickydata.org/security)**
+Visit **[https://rickydata.org/security](https://rickydata.org/security)**
 
 This page provides:
 - **TEE Attestation Report**: Cryptographic proof that code runs in AMD SEV-SNP
 - **Runtime Code Hash**: SHA-256 of the deployed private gateway build
 - **Live Status**: Current trust state, PCR measurements, key status
+- **Trust-plane provenance**: Rust `sandboxd` and `trust-plane` helper hashes beside the npm package integrity
 
-### Option 2: Verify the Code Yourself
+### Option 2: Verify Live Package and Trust-Plane Binding
+
+```bash
+curl -s https://mcp.rickydata.org/api/attestation/provenance | \
+  jq '{securityKernel: .securityKernel, trustPlane: .trustPlane}'
+```
+
+The `securityKernel` object proves which npm package version and integrity hash are locked into the deployed gateway. The `trustPlane` object proves which Rust helper binaries enforce sandbox lifecycle, secret-release decisions, and proof canonicalization inside the gateway image.
+
+### Option 3: Verify the Code Yourself
 
 1. **Inspect this repository**:
    ```bash
@@ -195,9 +205,9 @@ This page provides:
 4. **Compare with deployment metadata**:
    - The live gateway attestation proves the private production image currently running
    - The public kernel package proves the auditable crypto primitives shipped for review
-   - Customer-facing provenance should bind package version/integrity to the deployed image before treating the public package as an exact runtime proof
+   - Customer-facing provenance binds package version/integrity and Rust trust-plane helper hashes to the deployed image before treating the public package as runtime evidence
 
-### Option 3: Verify TEE Attestation
+### Option 4: Verify TEE Attestation
 
 ```bash
 # Fetch attestation from Agent Gateway
