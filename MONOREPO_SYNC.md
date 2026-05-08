@@ -13,3 +13,8 @@ Mirrored paths:
 - `examples/mcp-agent-gateway/secrets/`
 - `examples/mcp-gateway/secrets/`
 - `examples/rust-trust-plane/`
+
+KFDB TEE evidence is published separately by the `knowledgeflow_db` `TEE Security Lab` workflow:
+- Current bundle: `evidence/latest.json`
+- Historical bundles: `evidence/runs/*.json`
+- Schema: `evidence/schema.json`

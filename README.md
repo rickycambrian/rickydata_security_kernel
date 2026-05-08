@@ -182,7 +182,20 @@ curl -s https://mcp.rickydata.org/api/attestation/provenance | \
 
 The `securityKernel` object proves which npm package version and integrity hash are locked into the deployed gateway. The `trustPlane` object proves which Rust helper binaries enforce sandbox lifecycle, secret-release decisions, and proof canonicalization inside the gateway image.
 
-### Option 3: Verify the Code Yourself
+Package publishes should use the repository's GitHub Actions publish workflow with npm provenance so the registry package can be traced back to this public source checkout and workflow run.
+
+### Option 3: Verify KFDB TEE Evidence
+
+KFDB publishes its latest production TEE proof bundle in [`evidence/latest.json`](./evidence/latest.json), with the schema in [`evidence/schema.json`](./evidence/schema.json). The bundle records the live image digest, security-kernel source hash, TPM PCR key posture, attestation challenge result, S2D ciphertext-at-rest proof, and the stopped-when-idle GCP SEV-SNP lab result.
+
+```bash
+curl -s https://tee.knowledgeflowdb.org/health | jq '.security_posture'
+curl -s https://tee.knowledgeflowdb.org/api/v1/security/verify | jq .
+```
+
+Compare the live output with `evidence/latest.json`.
+
+### Option 4: Verify the Code Yourself
 
 1. **Inspect this repository**:
    ```bash
@@ -207,7 +220,7 @@ The `securityKernel` object proves which npm package version and integrity hash 
    - The public kernel package proves the auditable crypto primitives shipped for review
    - Customer-facing provenance binds package version/integrity and Rust trust-plane helper hashes to the deployed image before treating the public package as runtime evidence
 
-### Option 4: Verify TEE Attestation
+### Option 5: Verify TEE Attestation
 
 ```bash
 # Fetch attestation from Agent Gateway

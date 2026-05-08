@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/rickycambrian/rickydata_security_kernel/evidence/schema.json",
+  "title": "RickyData Security Evidence",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "subject",
+    "source",
+    "runtime",
+    "key_posture",
+    "security_kernel",
+    "image",
+    "lab",
+    "proof_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "rickydata.security-evidence.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "subject": {
+      "type": "object",
+      "required": ["system", "service", "endpoint"],
+      "properties": {
+        "system": { "type": "string" },
+        "service": { "type": "string" },
+        "endpoint": { "type": "string", "format": "uri" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["repository", "commit", "branch", "workflow", "workflow_run_id", "workflow_run_url"],
+      "properties": {
+        "repository": { "type": "string" },
+        "commit": { "type": "string" },
+        "branch": { "type": "string" },
+        "workflow": { "type": "string" },
+        "workflow_run_id": { "type": "string" },
+        "workflow_run_url": { "type": "string" }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["health", "security_verify", "attestation", "attestation_challenge"]
+    },
+    "key_posture": {
+      "type": "object",
+      "required": ["tee_platform", "key_source", "trust_posture"],
+      "properties": {
+        "tee_platform": { "type": "string", "pattern": "^GCE_AMD_SEV(_SNP)?$" },
+        "key_source": { "const": "tpm_pcr" },
+        "trust_posture": { "const": "enforced" }
+      }
+    },
+    "security_kernel": {
+      "type": "object",
+      "required": ["source_hash", "git_commit"],
+      "properties": {
+        "source_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "git_commit": { "type": "string" }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["digest"],
+      "properties": {
+        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "code_hash": { "type": "string" }
+      }
+    },
+    "s2d": {
+      "type": "object"
+    },
+    "lab": {
+      "type": "object",
+      "required": ["instance", "guest_probe"]
+    },
+    "proof_status": {
+      "const": "pass"
+    }
+  }
+}
