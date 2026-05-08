@@ -1,0 +1,352 @@
+{
+  "schema_version": "rickydata.security-evidence.v1",
+  "generated_at": "2026-05-08T14:32:07Z",
+  "subject": {
+    "system": "knowledgeflow_db",
+    "service": "kfdb-api-tee",
+    "endpoint": "https://tee.knowledgeflowdb.org"
+  },
+  "source": {
+    "repository": "rickycambrian/knowledgeflow_db",
+    "commit": "08a6091a3f859198dd3d1c7b973ccbd8911dcb97",
+    "branch": "main",
+    "workflow": "TEE Security Lab",
+    "workflow_run_id": "25561196432",
+    "workflow_run_url": "https://github.com/rickycambrian/knowledgeflow_db/actions/runs/25561196432"
+  },
+  "runtime": {
+    "health": {
+      "status": "healthy",
+      "version": "0.1.0",
+      "security_posture": {
+        "tee_platform": "GCE_AMD_SEV_SNP",
+        "attestation_verified": true,
+        "encryption_at_rest": true,
+        "memory_encrypted": true,
+        "trust_posture": "enforced",
+        "binary_hash": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7",
+        "key_source": "tpm_pcr",
+        "active_key_version": "k1",
+        "known_key_versions": [
+          "k1"
+        ],
+        "release_guard": {
+          "mode": "Enforced",
+          "total_decisions": 0,
+          "trusted": 0,
+          "degraded": 0,
+          "unavailable": 0,
+          "would_block": 0
+        }
+      }
+    },
+    "security_verify": {
+      "tee": {
+        "platform": "GCE_AMD_SEV_SNP",
+        "memory_encrypted": true
+      },
+      "encryption": {
+        "at_rest": true,
+        "algorithm": "AES-256-GCM",
+        "key_hierarchy": "HKDF-SHA256",
+        "key_source": "sign-to-derive",
+        "active_key_version": "k1",
+        "user_only_decrypt": true
+      },
+      "attestation": {
+        "available": true,
+        "image_digest": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7",
+        "code_hash": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7"
+      },
+      "trust_posture": "enforced",
+      "security_kernel": {
+        "crate_version": "0.1.0",
+        "source_hash": "3e27e1ea9aa04365bd99d534373b3fa0e05fbdedd64c4e9ccbc4d478c43289c6",
+        "repo_url": "https://github.com/rickycambrian/kfdb_security_kernel",
+        "git_commit": "cc1cc45b46a6040f2ea4bb89f0cb7fdde7fd438f"
+      },
+      "checks": [
+        {
+          "name": "TEE Hardware",
+          "status": "pass",
+          "detail": "GCE_AMD_SEV_SNP active"
+        },
+        {
+          "name": "Memory Encryption",
+          "status": "pass",
+          "detail": "Hardware-encrypted"
+        },
+        {
+          "name": "Code Integrity",
+          "status": "pass",
+          "detail": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7"
+        },
+        {
+          "name": "Encryption Keys",
+          "status": "pass",
+          "detail": "HKDF per-wallet active"
+        },
+        {
+          "name": "Trust Posture",
+          "status": "pass",
+          "detail": "enforced mode"
+        },
+        {
+          "name": "Security Kernel",
+          "status": "pass",
+          "detail": "v0.1.0"
+        }
+      ]
+    },
+    "attestation": {
+      "attestation_available": true,
+      "image_digest": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7",
+      "platform": "GCE_AMD_SEV_SNP",
+      "token": "eyJhbGciOiJSUzI1NiIsImtpZCI6IjgwNzZkZGJhYjQxNTU1NmUxNjkxNTRjNmE0YTBiZGJkNDQ2OWI3OWMiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOiJodHRwczovL3N0cy5nb29nbGVhcGlzLmNvbSIsImF6cCI6IjExNjU0NjMyNTYzNTg2NDg0NDM1MiIsImVtYWlsIjoiODgzMjYwNzQxMzQ3LWNvbXB1dGVAZGV2ZWxvcGVyLmdzZXJ2aWNlYWNjb3VudC5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiZXhwIjoxNzc4MjU0MzIxLCJnb29nbGUiOnsiY29tcHV0ZV9lbmdpbmUiOnsiaW5zdGFuY2VfY3JlYXRpb25fdGltZXN0YW1wIjoxNzc1MjIyMzA2LCJpbnN0YW5jZV9pZCI6IjIyNDMxOTU4Mzc2MjY4NDMzNzYiLCJpbnN0YW5jZV9uYW1lIjoia2ZkYi10ZWUtdm0iLCJwcm9qZWN0X2lkIjoiYWktcHJvamVjdHMtNDQyMjEzIiwicHJvamVjdF9udW1iZXIiOjg4MzI2MDc0MTM0Nywiem9uZSI6InVzLWNlbnRyYWwxLWEifX0sImlhdCI6MTc3ODI1MDcyMSwiaXNzIjoiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tIiwic3ViIjoiMTE2NTQ2MzI1NjM1ODY0ODQ0MzUyIn0.uMXzvzDzt779RDcAGQxM7GLlT694eHJUP6AexBwQLpG8_-roXD94u_AEr1dU0s1a6n5DalV0bl1FogD9u5LKnljbb3m-dCnJHDXWJFNUIN1gi6T6EzH9kok7tsIIVux-jt1xEBpJEK6H7qMwUv-kXIAD0do7G2f_0fW_y3bkO8Dc1_Wvtj57hksE8KW5m63cop19OFpNrXTNyV9jmq7DZIVf-b9tqHKdFWmbPGbdOR3i9w5W86qFA8hg7CfTAFlIM3HRtWS-IlCLsO_MBk6j9u9QghKGx7Deq8tVySiiQoGpxrxypRKRA6BzDBbpNGwqQ-dkFV0hqRx0WwVZdYpmWw",
+      "timestamp": "2026-05-08T14:32:01.000Z"
+    },
+    "attestation_challenge": {
+      "attestation_hash": "3f3101843963085ed85964d5ae21506297b553f8c7f0709d4160b70ac2d143bb",
+      "image_digest": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7",
+      "nonce": "3a48f7b7219c1a782ebc421ea700ef4d705703f2938a5d534890ff2b167f58a4",
+      "platform": "GCE_AMD_SEV_SNP",
+      "public_key": "4b60d2700da1f8f73cfb7e32bb66bf6fcaf6c0ddfea9f0f3b0d7539f20a797b6",
+      "signature": "a3bd3de3883749d407a62e27439903303beb918babfeaaef994faaefe26608ebb53c8b77d918eef2501a4cb4dac241029c00b25d7dab01067e3a2042e15f4d0c",
+      "timestamp": "2026-05-08T14:32:01.000Z"
+    }
+  },
+  "key_posture": {
+    "tee_platform": "GCE_AMD_SEV_SNP",
+    "key_source": "tpm_pcr",
+    "trust_posture": "enforced",
+    "release_guard": {
+      "mode": "Enforced",
+      "total_decisions": 0,
+      "trusted": 0,
+      "degraded": 0,
+      "unavailable": 0,
+      "would_block": 0
+    },
+    "active_key_version": "k1",
+    "known_key_versions": [
+      "k1"
+    ]
+  },
+  "security_kernel": {
+    "crate_version": "0.1.0",
+    "source_hash": "3e27e1ea9aa04365bd99d534373b3fa0e05fbdedd64c4e9ccbc4d478c43289c6",
+    "repo_url": "https://github.com/rickycambrian/kfdb_security_kernel",
+    "git_commit": "cc1cc45b46a6040f2ea4bb89f0cb7fdde7fd438f"
+  },
+  "image": {
+    "digest": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7",
+    "code_hash": "sha256:06d3dcd4ca5479174d17fa974614f1cfdf44d3eaad0ecf5575396df481acecf7"
+  },
+  "s2d": {
+    "status": "pass",
+    "base_url": "https://tee.knowledgeflowdb.org",
+    "generated_at": "2026-05-08T14:32:07.120Z",
+    "wallet_address": "0x6f3460A5DC0Da4f085cf42945a72C0Ef2520f977",
+    "derive_session_id": "0a718051-b596-42f9-a615-08b08e9822e1",
+    "tracked_session_id": "e2e-1778250723165-315c2862",
+    "session_uuid": "46e54825-4fbd-43da-ada1-06b0be317232",
+    "ciphertext_prefix": "__enc_v2_user.str:ssM/gl4uVlG+",
+    "ciphertext_length": 890,
+    "admin_shared_keyspace_read_gap": true,
+    "summary": {
+      "pass": 9,
+      "warning": 1,
+      "failure": 0,
+      "total": 10
+    },
+    "results": [
+      {
+        "name": "1. Generate disposable wallet",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "address": "0x6f3460A5DC0Da4f085cf42945a72C0Ef2520f977"
+        },
+        "err": null
+      },
+      {
+        "name": "2. POST /api/v1/auth/derive-challenge",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "challenge_id": "c1f54fff-c4f8-4c53-ae18-e241a4df1219",
+          "primaryType": "AuthMessage"
+        },
+        "err": null
+      },
+      {
+        "name": "3. Sign EIP-712 typed data",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "signature_prefix": "0x2d87d78f01bff1cbc5..."
+        },
+        "err": null
+      },
+      {
+        "name": "4. POST /api/v1/auth/derive-key",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "session_id": "0a718051-b596-42f9-a615-08b08e9822e1",
+          "wallet": "0x6f3460A5DC0Da4f085cf42945a72C0Ef2520f977",
+          "expires_at": 1809786723
+        },
+        "err": null
+      },
+      {
+        "name": "5a. POST /api/v1/plugin/session-start with S2D headers",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "status": 200,
+          "session_uuid": "46e54825-4fbd-43da-ada1-06b0be317232"
+        },
+        "err": null
+      },
+      {
+        "name": "5. POST /api/v1/plugin/track-message with S2D headers",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "status": 200,
+          "session_id": "e2e-1778250723165-315c2862"
+        },
+        "err": null
+      },
+      {
+        "name": "6. Query stored row — ciphertext at rest",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "prefix": "__enc_v2_user.str:ssM/gl4uVlG+",
+          "length": 890
+        },
+        "err": null
+      },
+      {
+        "name": "9. /api/v1/auth/encryption-status shape",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "mode": "plaintext",
+          "active_key_version": null,
+          "available_key_versions": [],
+          "user_key_present": false,
+          "wallet_address": null,
+          "shared_keyspace": true,
+          "tee_trust_state": "trusted",
+          "release_posture": "enforced"
+        },
+        "err": null
+      },
+      {
+        "name": "7. GET /sessions/:id/messages WITH S2D headers decrypts",
+        "passed": false,
+        "warning": true,
+        "evidence": {
+          "got_content": "[user-encrypted]",
+          "mode": "admin-shared-keyspace-known-gap"
+        },
+        "err": "Admin shared-keyspace middleware intentionally drops derive headers on read; ciphertext-at-rest proof remains Step 6."
+      },
+      {
+        "name": "8. GET /sessions/:id/messages WITHOUT S2D headers masks",
+        "passed": true,
+        "warning": false,
+        "evidence": {
+          "content": "[user-encrypted]"
+        },
+        "err": null
+      }
+    ]
+  },
+  "lab": {
+    "instance": {
+      "confidentialInstanceConfig": {
+        "confidentialInstanceType": "SEV_SNP"
+      },
+      "disks": [
+        {
+          "diskSizeGb": "30",
+          "type": "PERSISTENT"
+        }
+      ],
+      "labels": {
+        "managed-by": "github-actions",
+        "purpose": "tee-security-lab",
+        "repo": "knowledgeflow-db"
+      },
+      "machineType": "https://www.googleapis.com/compute/v1/projects/ai-projects-442213/zones/us-central1-a/machineTypes/n2d-standard-2",
+      "name": "kfdb-tee-lab-vm",
+      "networkInterfaces": [
+        {
+          "accessConfigs": [
+            {
+              "type": "ONE_TO_ONE_NAT"
+            }
+          ],
+          "networkIP": "10.128.0.43"
+        }
+      ],
+      "scheduling": {
+        "automaticRestart": true,
+        "onHostMaintenance": "TERMINATE",
+        "preemptible": false,
+        "provisioningModel": "STANDARD"
+      },
+      "shieldedInstanceConfig": {
+        "enableIntegrityMonitoring": true,
+        "enableSecureBoot": false,
+        "enableVtpm": true
+      },
+      "status": "RUNNING",
+      "tags": {
+        "fingerprint": "sI-U35LHrpI=",
+        "items": [
+          "kfdb-tee-lab"
+        ]
+      },
+      "zone": "https://www.googleapis.com/compute/v1/projects/ai-projects-442213/zones/us-central1-a"
+    },
+    "guest_probe": {
+      "generated_at": "2026-05-08T14:31:56Z",
+      "hostname": "kfdb-tee-lab-vm",
+      "kernel": "Linux kfdb-tee-lab-vm 6.8.0-1054-gcp #57~22.04.1-Ubuntu SMP Fri Apr  3 23:48:43 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux",
+      "gcp_metadata": {
+        "zone": "projects/883260741347/zones/us-central1-a",
+        "machine_type": "projects/883260741347/machineTypes/n2d-standard-2",
+        "image": "projects/ubuntu-os-cloud/global/images/ubuntu-2204-jammy-v20260504"
+      },
+      "guest_evidence": {
+        "tpm_devices": [
+          "/dev/tpmrm0",
+          "/dev/tpm0"
+        ],
+        "sev_guest_paths": [
+          "/dev/sev-guest",
+          "/sys/devices/virtual/misc/sev-guest",
+          "/sys/module/sev_guest"
+        ],
+        "dmesg_confidential_snippet": "[    0.386077] Memory Encryption Features active: AMD SEV SEV-ES SEV-SNP\n[    0.730304] SEV: APIC: wakeup_secondary_cpu() replaced with wakeup_cpu_via_vmgexit()\n[    0.795368] SEV: Using SNP CPUID table, 57 entries present.\n[    0.796297] SEV: SNP running at VMPL0.\n[    0.926783] iommu: Memory encryption detected - Disabling default IOMMU Passthrough\n[    1.225866] SEV: SNP guest platform devices initialized.\n[    1.399890] software IO TLB: Memory encryption is active and system is using DMA bounce buffers\n[    1.438021] sev-guest sev-guest: Initialized SEV guest driver (using vmpck_id 0)\n"
+      },
+      "tpm": {
+        "pcr_read_status": "pass",
+        "pcr_read_stdout": "  sha256:\n    0 : 0x50597A27846E91D025EEF597ABBC89F72BFF9AF849094DB97B0684D8BC4C515E\n    1 : 0x511125D136AFF52DD83C0A35E05475D3F4F9B145896B320B67B981565473ABD1\n    2 : 0x3D458CFE55CC03EA1F443F1562BEEC8DF51C75E14A9FCF9A7234A13F198E7969\n    3 : 0x3D458CFE55CC03EA1F443F1562BEEC8DF51C75E14A9FCF9A7234A13F198E7969\n    4 : 0x8D5BE4A02DECA1E8BB63530C0ABB29DFBBC6FBBD9667C2CABD7E3746D2D38291\n    5 : 0x2C714614D756CACBE09719A9947E2AE17BA64ABB4EBDB1DE1C790533FEE44133\n    7 : 0xAA2C028D90F7FC1E7A5E4BC7E71E2E68709F9EF031BF58ED6BC90A17FC335824\n",
+        "pcr_read_stderr": "",
+        "pcr_policy_roundtrip": {
+          "status": "pass",
+          "pcr_list": "sha256:0,1,2,3,4,5,7",
+          "policy_digest_sha256": "c8aa874e45a9f2548220ab20752c437a86d2de5d3096d9f90f01889c1a6a67de"
+        }
+      },
+      "status": "pass"
+    }
+  },
+  "proof_status": "pass"
+}
