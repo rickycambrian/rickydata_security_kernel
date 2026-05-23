@@ -15,6 +15,7 @@ export type S2DPurpose =
   | 'deepseek-apikey'
   | 'gemini-apikey'
   | 'kimi-apikey'
+  | 'opencode-apikey'
   | 'openai-apikey'
   | 'provider-api-keys'
   | 'codex-auth'
@@ -80,6 +81,13 @@ const REGISTRY: Record<S2DPurpose, SigningMessageVersion[]> = {
       version: 1,
       getMessage: (wallet: string) =>
         `Sign this message to encrypt your Kimi API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: kimi`,
+    },
+  ],
+  'opencode-apikey': [
+    {
+      version: 1,
+      getMessage: (wallet: string) =>
+        `Sign this message to encrypt your OpenCode Go API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: opencode`,
     },
   ],
   'openai-apikey': [
