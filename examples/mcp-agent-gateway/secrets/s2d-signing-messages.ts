@@ -19,6 +19,7 @@ export type S2DPurpose =
   | 'openai-apikey'
   | 'provider-api-keys'
   | 'codex-auth'
+  | 'anthropic-oauth'
   | 'erc8004-derive';
 
 interface SigningMessageVersion {
@@ -109,6 +110,13 @@ const REGISTRY: Record<S2DPurpose, SigningMessageVersion[]> = {
       version: 1,
       getMessage: (wallet: string) =>
         `Sign this message to encrypt your Codex subscription auth on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: codex`,
+    },
+  ],
+  'anthropic-oauth': [
+    {
+      version: 1,
+      getMessage: (wallet: string) =>
+        `Sign this message to encrypt your Claude Code OAuth credentials on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: anthropic`,
     },
   ],
   'erc8004-derive': [
