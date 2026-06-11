@@ -33,7 +33,7 @@ The Security Kernel provides a portable TypeScript library for cryptographic key
 ### Core Principles
 
 1. **Defense in Depth**: All secrets encrypted at rest and in transit
-2. **Zero-Knowledge**: Sign-to-derive mode avoids persistent operator-held encryption keys; derived keys are transient and must be wiped
+2. **User-Controlled Encryption**: Sign-to-derive mode avoids persistent operator-held encryption keys; derived keys are transient and must be wiped. This is an encryption/key-control property, not a cryptographic proof system.
 3. **Hardware-Backed**: TPM sealing for production; mock mode only for tests
 4. **Memory Safety**: Secure wipe primitives for all sensitive buffers
 5. **Auditability**: Comprehensive metrics and decision logging

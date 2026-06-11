@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/github/last-commit/rickycambrian/rickydata_security_kernel?style=for-the-badge" alt="Last commit">
 </p>
 
-A publicly auditable security kernel providing cryptographic primitives for user-controlled encryption. This package supports **zero-knowledge architecture**: user data is encrypted with user-controlled signatures or TPM-bound keys, and production services are expected to fail closed instead of falling back to operator-readable keys.
+A publicly auditable security kernel providing cryptographic primitives for user-controlled encryption. This package supports **operator-inaccessible encrypted-at-rest architecture**: user data is encrypted with keys derived from user-controlled signatures or TPM-bound key material, and production services are expected to fail closed instead of falling back to operator-readable keys. It does not implement or claim cryptographic proof systems.
 
 > **This is NOT permissive open source.** See [LICENSE](./LICENSE) for usage terms.
 

@@ -107,7 +107,7 @@ curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources'
 # If byokVaultEncryptionKey shows "env_fallback", the operator could read user secrets
 ```
 
-### 6. Verify BYOK Vault Key Is Zero-Knowledge
+### 6. Verify BYOK Vault Key Is Operator-Inaccessible At Rest
 ```bash
 # Confirm the BYOK vault key source is tpm_pcr (NOT env_fallback)
 curl -s https://agents.rickydata.org/health | jq '.securityPosture.keySources.byokVaultEncryptionKey'
