@@ -5,9 +5,9 @@ Gateway-specific wrappers and Rust trust-plane helpers are mirrored under `examp
 inspect how the package is used by production gateways without mixing gateway-only imports into the npm package.
 
 - Source monorepo commit: `b8f458f1bddcb9c8b1ae739b1b503467c5a32c97`
-- Source workflow: `Deploy MCP Gateway to TEE`
-- Source workflow run: `27582837061`
-- Synced at: `2026-06-15T23:41:58Z`
+- Source workflow: `Deploy Agent Gateway to TEE`
+- Source workflow run: `27582837093`
+- Synced at: `2026-06-15T23:57:33Z`
 
 Mirrored paths:
 - `examples/mcp-agent-gateway/secrets/`
