@@ -6,8 +6,8 @@ inspect how the package is used by production gateways without mixing gateway-on
 
 - Source monorepo commit: `02b1e0af7cb04ab6c298c89026080b19f6424b1c`
 - Source workflow: `Deploy Agent Gateway to TEE`
-- Source workflow run: `27854361879`
-- Synced at: `2026-06-20T00:53:55Z`
+- Source workflow run: `27855304420`
+- Synced at: `2026-06-20T01:29:34Z`
 
 Mirrored paths:
 - `examples/mcp-agent-gateway/secrets/`
