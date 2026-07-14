@@ -10,9 +10,9 @@
  *
  * Sign-to-Derive Mode:
  * - User signs a message with their wallet
- * - Signature is used to derive encryption key
- * - Server never sees or stores the actual key
- * - True user-controlled encryption
+ * - The authorized runtime derives the encryption key in memory
+ * - Persistent storage does not retain that derived key
+ * - Wallet-authorized encryption at rest, not user-only E2EE
  */
 
 import * as crypto from 'crypto';
