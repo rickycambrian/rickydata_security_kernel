@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::Ipv4Addr;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::{Command, Stdio};
 
@@ -39,6 +40,8 @@ struct PlanRequest {
     runtime: String,
     control_mode: String,
     effective_network_policy: String,
+    #[serde(default)]
+    memory_reservation_mb: u32,
     network_profile: NetworkProfile,
     config: SandboxConfig,
     #[serde(default)]
@@ -109,7 +112,18 @@ fn sanitize_container_name(instance_key: &str) -> String {
             last_dash = false;
         }
     }
-    out.trim_matches('-').chars().take(63).collect()
+    let normalized = out.trim_matches('-');
+    if normalized.len() <= 63 {
+        return normalized.to_string();
+    }
+
+    let digest = Sha256::digest(instance_key.as_bytes());
+    let hash = digest[..6]
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let prefix = normalized[..63 - hash.len() - 1].trim_end_matches('-');
+    format!("{prefix}-{hash}")
 }
 
 fn build_plan(req: &PlanRequest) -> PlanResponse {
@@ -124,6 +138,14 @@ fn build_plan(req: &PlanRequest) -> PlanResponse {
         format!("{}m", req.config.memory_limit_mb),
         "--memory-swap".to_string(),
         format!("{}m", req.config.memory_limit_mb),
+    ];
+
+    if req.memory_reservation_mb > 0 {
+        args.push("--memory-reservation".to_string());
+        args.push(format!("{}m", req.memory_reservation_mb));
+    }
+
+    args.extend([
         "--cpus".to_string(),
         format_number(req.config.cpu_limit),
         "--pids-limit".to_string(),
@@ -147,7 +169,7 @@ fn build_plan(req: &PlanRequest) -> PlanResponse {
         "max-size=10m".to_string(),
         "--log-opt".to_string(),
         "max-file=3".to_string(),
-    ];
+    ]);
 
     match req.effective_network_policy.as_str() {
         "none" => {
@@ -296,21 +318,24 @@ fn serve(socket_path: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn secure_egress_socket(socket_path: &str, expected_gid: u32) -> Result<(), String> {
+    fs::set_permissions(socket_path, fs::Permissions::from_mode(0o660))
+        .map_err(|err| format!("failed to secure egress socket: {err}"))?;
+    let metadata = fs::metadata(socket_path)
+        .map_err(|err| format!("failed to inspect egress socket owner: {err}"))?;
+    if metadata.gid() != expected_gid {
+        return Err(format!(
+            "egress socket inherited gid {}, expected {expected_gid}",
+            metadata.gid()
+        ));
+    }
+    Ok(())
+}
+
 fn serve_egress(socket_path: &str) -> Result<(), String> {
     let _ = fs::remove_file(socket_path);
     let listener = UnixListener::bind(socket_path).map_err(|err| err.to_string())?;
-    fs::set_permissions(socket_path, fs::Permissions::from_mode(0o660))
-        .map_err(|err| format!("failed to secure egress socket: {err}"))?;
-    let chown = Command::new("chown")
-        .args(["999:999", socket_path])
-        .output()
-        .map_err(|err| format!("failed to set egress socket owner: {err}"))?;
-    if !chown.status.success() {
-        return Err(format!(
-            "failed to set egress socket owner: {}",
-            String::from_utf8_lossy(&chown.stderr).trim()
-        ));
-    }
+    secure_egress_socket(socket_path, 999)?;
 
     for stream in listener.incoming() {
         match stream {
@@ -558,11 +583,12 @@ fn handle_egress_http(stream: &mut UnixStream) -> Result<(), String> {
             // Listing the host FORWARD chain is read-only but still requires the
             // NET_ADMIN capability needed by apply/cleanup. Readiness therefore
             // proves both binary availability and the narrow runtime privilege.
-            let available = run_iptables(&["-L", "FORWARD", "-n"]).is_ok();
-            if available {
-                (200, json!({ "status": "ok", "iptablesAvailable": true }))
-            } else {
-                (503, json!({ "error": "iptables_unavailable" }))
+            match run_iptables(&["-L", "FORWARD", "-n"]) {
+                Ok(()) => (200, json!({ "status": "ok", "iptablesAvailable": true })),
+                Err(err) => {
+                    eprintln!("sandboxd egress health check failed: {err}");
+                    (503, json!({ "error": "iptables_unavailable" }))
+                }
             }
         }
         ("POST", "/v1/egress/apply") => match serde_json::from_str::<EgressApplyRequest>(&body) {
@@ -705,6 +731,7 @@ mod tests {
             runtime: "runc".to_string(),
             control_mode: "proxy".to_string(),
             effective_network_policy: "restricted".to_string(),
+            memory_reservation_mb: 0,
             network_profile: NetworkProfile {
                 name: "mcp-restricted-abcdef12".to_string(),
                 profile_type: "restricted".to_string(),
@@ -744,6 +771,25 @@ mod tests {
     }
 
     #[test]
+    fn hashes_long_session_container_names_like_typescript_path() {
+        let prefix = format!(
+            "0x{}:3883e5df-de92-5c4d-9c09-f4f79a62e22d:session:",
+            "a".repeat(40)
+        );
+        let first = format!("{prefix}0b865020-3c1a-416f-a889-d963c7c46abf");
+        let second = format!("{prefix}4f2e755e-5c4a-44e9-b970-4fe0a14107e9");
+
+        assert_eq!(
+            sanitize_container_name(&first),
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-3883e5d-752f5a44a385"
+        );
+        assert_ne!(
+            sanitize_container_name(&first),
+            sanitize_container_name(&second)
+        );
+    }
+
+    #[test]
     fn plan_keeps_secret_values_out_of_argv() {
         let req = base_request();
         let plan = build_plan(&req);
@@ -770,6 +816,20 @@ mod tests {
             .args
             .windows(2)
             .any(|pair| pair == ["--network", "mcp-open-deadbeef"]));
+    }
+
+    #[test]
+    fn plan_preserves_gateway_memory_reservation() {
+        let mut raw = serde_json::to_value(base_request()).expect("serialize base request");
+        raw["memoryReservationMb"] = json!(256);
+        let req: PlanRequest = serde_json::from_value(raw).expect("parse request with reservation");
+
+        let plan = build_plan(&req);
+
+        assert!(plan
+            .args
+            .windows(2)
+            .any(|pair| pair == ["--memory-reservation", "256m"]));
     }
 
     #[test]
@@ -852,5 +912,32 @@ mod tests {
         writer_thread.join().unwrap();
         assert!(observed_head.starts_with("POST /v1/egress/apply"));
         assert_eq!(observed_body, body);
+    }
+
+    #[test]
+    fn secures_egress_socket_without_chown_capability() {
+        let socket_path =
+            std::path::PathBuf::from(format!("/tmp/sandboxd-egress-{}.sock", std::process::id()));
+        let _ = fs::remove_file(&socket_path);
+        let listener = UnixListener::bind(&socket_path).unwrap();
+        let inherited_gid = fs::metadata(&socket_path).unwrap().gid();
+
+        secure_egress_socket(socket_path.to_str().unwrap(), inherited_gid).unwrap();
+        let mode = fs::metadata(&socket_path).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode, 0o660);
+
+        let wrong_gid = if inherited_gid == u32::MAX {
+            inherited_gid - 1
+        } else {
+            inherited_gid + 1
+        };
+        assert!(
+            secure_egress_socket(socket_path.to_str().unwrap(), wrong_gid)
+                .unwrap_err()
+                .contains("inherited gid")
+        );
+
+        drop(listener);
+        fs::remove_file(socket_path).unwrap();
     }
 }
