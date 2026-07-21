@@ -17,6 +17,7 @@ export type S2DPurpose =
   | 'kimi-apikey'
   | 'opencode-apikey'
   | 'openai-apikey'
+  | 'levanto-apikey'
   | 'provider-api-keys'
   | 'codex-auth'
   | 'anthropic-oauth'
@@ -96,6 +97,13 @@ const REGISTRY: Record<S2DPurpose, SigningMessageVersion[]> = {
       version: 1,
       getMessage: (wallet: string) =>
         `Sign this message to encrypt your OpenAI API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: openai`,
+    },
+  ],
+  'levanto-apikey': [
+    {
+      version: 1,
+      getMessage: (wallet: string) =>
+        `Sign this message to encrypt your Levanto Sage API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: levanto`,
     },
   ],
   'provider-api-keys': [
