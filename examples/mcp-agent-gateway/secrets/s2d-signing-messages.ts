@@ -15,6 +15,7 @@ export type S2DPurpose =
   | 'deepseek-apikey'
   | 'gemini-apikey'
   | 'kimi-apikey'
+  | 'qwen-apikey'
   | 'opencode-apikey'
   | 'openai-apikey'
   | 'levanto-apikey'
@@ -83,6 +84,13 @@ const REGISTRY: Record<S2DPurpose, SigningMessageVersion[]> = {
       version: 1,
       getMessage: (wallet: string) =>
         `Sign this message to encrypt your Kimi API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: kimi`,
+    },
+  ],
+  'qwen-apikey': [
+    {
+      version: 1,
+      getMessage: (wallet: string) =>
+        `Sign this message to encrypt your Qwen Token Plan API key on MCP Agent Gateway.\n\nWallet: ${wallet.toLowerCase()}\nPurpose: derive-encryption-key\nProvider: qwen`,
     },
   ],
   'opencode-apikey': [
