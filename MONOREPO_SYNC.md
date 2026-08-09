@@ -4,10 +4,10 @@ This repository owns the canonical `@rickydata/security-kernel` package source u
 Gateway-specific wrappers and Rust trust-plane helpers are mirrored under `examples/` so auditors can
 inspect how the package is used by production gateways without mixing gateway-only imports into the npm package.
 
-- Source monorepo commit: `f9198bafc8351dfee10ac1723a247f3b89b5a6a5`
+- Source monorepo commit: `e56f1ebf487e4ba237b030fe0ffa6715b44d3995`
 - Source workflow: `Deploy Agent Gateway to TEE`
-- Source workflow run: `31302721591`
-- Synced at: `2026-08-09T10:00:19Z`
+- Source workflow run: `31307562119`
+- Synced at: `2026-08-09T10:40:03Z`
 
 Mirrored paths:
 - `examples/mcp-agent-gateway/secrets/`
